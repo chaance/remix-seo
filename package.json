@@ -1,0 +1,85 @@
+{
+	"name": "remix-seo",
+	"version": "0.0.1",
+	"description": "A package for easily managing SEO meta and link tags in Remix.",
+	"main": "./dist/index.js",
+	"module": "./dist/index.mjs",
+	"types": "./dist/index.d.ts",
+	"files": [
+		"README.md",
+		"package.json",
+		"package-lock.json",
+		"dist/index.js",
+		"dist/index.mjs",
+		"dist/index.d.ts"
+	],
+	"scripts": {
+		"build:types": "tsc src/index.ts --declaration --declarationDir dist --emitDeclarationOnly --esModuleInterop",
+		"build:esm": "esbuild src/index.ts --platform=neutral --outfile=dist/index.mjs",
+		"build:cjs": "esbuild src/index.ts --format=cjs --platform=node --outfile=dist/index.js",
+		"build": "run-s build:*",
+		"test": "jest",
+		"setup": "remix setup",
+		"postinstall": "patch-package && npm run setup"
+	},
+	"keywords": [
+		"react",
+		"remix",
+		"remix-run",
+		"seo"
+	],
+	"author": "Chance Strickland <hi@chance.dev>",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/chaance/remix-seo"
+	},
+	"bugs": {
+		"url": "https://github.com/chaance/remix-seo/issues"
+	},
+	"license": "MIT",
+	"dependencies": {
+		"just-merge": "^2.1.1"
+	},
+	"devDependencies": {
+		"@babel/core": "^7.16.0",
+		"@babel/eslint-parser": "^7.16.0",
+		"@babel/preset-env": "^7.16.0",
+		"@babel/preset-react": "^7.16.0",
+		"@babel/preset-typescript": "^7.16.0",
+		"@remix-run/dev": "0.20.1",
+		"@remix-run/node": "0.20.1",
+		"@remix-run/react": "0.20.1",
+		"@rushstack/eslint-patch": "^1.1.0",
+		"@types/jest": "^27.0.2",
+		"@types/prop-types": "^15.7.4",
+		"@types/react": "^17.0.14",
+		"@typescript-eslint/eslint-plugin": "^5.3.1",
+		"@typescript-eslint/parser": "^5.3.1",
+		"babel-jest": "^27.3.1",
+		"esbuild": "^0.13.12",
+		"eslint": "^8.2.0",
+		"eslint-import-resolver-node": "0.3.6",
+		"eslint-import-resolver-typescript": "^2.5.0",
+		"eslint-plugin-import": "^2.25.2",
+		"eslint-plugin-jest": "^25.2.4",
+		"eslint-plugin-node": "^11.1.0",
+		"eslint-plugin-react": "^7.26.1",
+		"eslint-plugin-react-hooks": "alpha",
+		"jest": "^27.3.1",
+		"npm-run-all": "^4.1.5",
+		"patch-package": "^6.4.7",
+		"prettier": "^2.4.1",
+		"react": "^17.0.2",
+		"react-dom": "^17.0.2",
+		"remix": "0.20.1",
+		"typescript": "^4.4.4"
+	},
+	"peerDependencies": {
+		"@remix-run/react": ">=0.20.1",
+		"remix": ">=0.20.1"
+	},
+	"prettier": {
+		"useTabs": true,
+		"tabWidth": 2
+	}
+}
