@@ -559,12 +559,12 @@ function getSeoTitle(config: SeoConfig): string {
 }
 
 function warn(message: string): void {
-	if (typeof console !== "undefined") console.warn(message);
+	if (typeof console !== "undefined") console.warn("remix-seo: " + message);
 	try {
 		// This error is thrown as a convenience so you can more easily
 		// find the source for a warning that appears in the console by
 		// enabling "pause on exceptions" in your JavaScript debugger.
-		throw new Error(message);
+		throw new Error("remix-seo: " + message);
 	} catch (e) {}
 }
 
@@ -572,7 +572,7 @@ function warnIfInvalidUrl(str: string, warning: string) {
 	try {
 		new URL(str);
 	} catch (_) {
-		warn("remix-seo: " + warning);
+		warn(warning);
 	}
 }
 
