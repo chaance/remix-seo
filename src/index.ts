@@ -687,7 +687,6 @@ export interface SeoConfig {
 	canonical?: string;
 	defaultTitle?: string;
 	description?: string;
-	disableGoogleBot?: boolean;
 	facebook?: FacebookMeta;
 	languageAlternates?: LanguageAlternate[];
 	mobileAlternate?: MobileAlternate;
