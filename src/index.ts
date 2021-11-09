@@ -246,32 +246,106 @@ export function getSeo(defaultConfig?: SeoConfig): SeoFunction {
 			}
 
 			if (twitter.card) {
-				meta["twitter:card"] = twitter.card;
+				let cardType = validateTwitterCard(twitter);
+				if (cardType) {
+					meta["twitter:card"] = cardType;
+				}
 			}
 
 			if (twitter.site) {
-				meta["twitter:site"] = twitter.site;
+				meta["twitter:site"] =
+					typeof twitter.site === "object" ? twitter.site.id : twitter.site;
 			}
 
 			if (twitter.creator) {
-				meta["twitter:creator"] = twitter.creator;
+				meta["twitter:creator"] =
+					typeof twitter.creator === "object"
+						? twitter.creator.id
+						: twitter.creator;
 			}
 
-			if (twitter.image && twitter.image.url) {
+			if (hasTwitterImageMeta(twitter)) {
 				warnIfInvalidUrl(
 					twitter.image.url,
-					`The Twitter image tag must be a valid, absolute URL. Relative paths will not work as expected. Check the config's \`twitter.image.url\` value.`
+					`The twitter:image tag must be a valid, absolute URL. Relative paths will not work as expected. Check the config's \`twitter.image.url\` value.`
 				);
 				meta["twitter:image"] = twitter.image.url;
-				if (twitter.image.alt) {
+				if (twitter.image!.alt) {
 					meta["twitter:image:alt"] = twitter.image.url;
 				} else {
 					warn(
 						"A Twitter image should use alt text that describes the image. This is important for users who are visually impaired. Please add a text value to the `alt` key of the `twitter.image` config option to dismiss this warning."
 					);
 				}
+			}
 
-				if (!meta["twitter:card"]) {
+			if (hasTwitterPlayerMeta(twitter)) {
+				if (twitter.player.url) {
+					warnIfInvalidUrl(
+						twitter.player.url,
+						`The twitter:player tag must be a valid, absolute URL. Relative paths will not work as expected. Check the config's \`twitter.player.url\` value.`
+					);
+					meta["twitter:player"] = twitter.player.url;
+				}
+
+				if (twitter.player.stream) {
+					warnIfInvalidUrl(
+						twitter.player.stream,
+						`The twitter:player:stream tag must be a valid, absolute URL. Relative paths will not work as expected. Check the config's \`twitter.player.stream\` value.`
+					);
+					meta["twitter:player:stream"] = twitter.player.stream;
+				}
+
+				if (twitter.player.height) {
+					meta["twitter:player:height"] = twitter.player.height.toString();
+				}
+
+				if (twitter.player.width) {
+					meta["twitter:player:height"] = twitter.player.width.toString();
+				}
+			}
+
+			if (hasTwitterAppMeta(twitter)) {
+				const twitterDevices = ["iPhone", "iPad", "googlePlay"] as const;
+
+				if (typeof twitter.app.name === "object") {
+					for (const device of twitterDevices) {
+						if (twitter.app.name[device]) {
+							meta[`twitter:app:name:${device.toLowerCase()}`] =
+								twitter.app.name[device]!;
+						}
+					}
+				} else {
+					meta["twitter:app:name:iphone"] = twitter.app.name;
+					meta["twitter:app:name:ipad"] = twitter.app.name;
+					meta["twitter:app:name:googleplay"] = twitter.app.name;
+				}
+
+				if (typeof twitter.app.id === "object") {
+					for (const device of twitterDevices) {
+						if (twitter.app.id[device]) {
+							meta[`twitter:app:id:${device.toLowerCase()}`] =
+								twitter.app.id[device]!;
+						}
+					}
+				}
+
+				if (typeof twitter.app.url === "object") {
+					for (const device of twitterDevices) {
+						if (twitter.app.url[device]) {
+							meta[`twitter:app:url:${device.toLowerCase()}`] =
+								twitter.app.url[device]!;
+						}
+					}
+				}
+			}
+
+			if (!meta["twitter:card"]) {
+				if (hasTwitterPlayerMeta(twitter)) {
+					meta["twitter:card"] = "player";
+				} else if (hasTwitterAppMeta(twitter)) {
+					meta["twitter:card"] = "app";
+				} else if (hasTwitterImageMeta(twitter)) {
 					meta["twitter:card"] = "summary";
 				}
 			}
@@ -576,6 +650,135 @@ function warnIfInvalidUrl(str: string, message: string) {
 	}
 }
 
+function validateTwitterCard(
+	twitter: TwitterMeta
+): TwitterCardType | undefined {
+	if (!twitter.card) {
+		return;
+	}
+
+	if (
+		!["app", "player", "summary", "summary_large_image"].includes(twitter.card)
+	) {
+		warn(`An invalid Twitter card was provided to the config and will be ignored. Make sure that \`twitter.card\` is set to one of the following:
+- "app"
+- "player"
+- "summary"
+- "summary_large_image"
+
+Read more: https://developer.twitter.com/en/docs/twitter-for-websites/cards/overview/markup`);
+		return;
+	}
+
+	if (hasTwitterAppMeta(twitter)) {
+		if (twitter.card !== "app") {
+			warn(`An Twitter card type of \`${twitter.card}\` was provided to a config with app metadata. Twitter app cards must use a \`twitter:card\` value of \`"app"\`, so the app metadata will be ignored. Fix the \`twitter.card\` value or remove the \`twitter.app\` config to dismiss this warning.
+
+Read more: https://developer.twitter.com/en/docs/twitter-for-websites/cards/overview/markup`);
+			// @ts-ignore
+			delete twitter.app;
+		} else {
+			if (hasTwitterImageMeta(twitter)) {
+				warn(`The Twitter app card type does not support the twitter:image metadata provided in your config. Remove the \`twitter.image\` config to dismiss this warning.
+
+	Read more: https://developer.twitter.com/en/docs/twitter-for-websites/cards/overview/markup`);
+				// @ts-ignore
+				delete twitter.image;
+			}
+
+			if (hasTwitterPlayerMeta(twitter)) {
+				warn(`The Twitter app card type does not support the twitter:player metadata provided in your config. Remove the \`twitter.player\` config to dismiss this warning.
+
+	Read more: https://developer.twitter.com/en/docs/twitter-for-websites/cards/overview/markup`);
+				// @ts-ignore
+				delete twitter.player;
+			}
+
+			return "app";
+		}
+	}
+
+	if (hasTwitterPlayerMeta(twitter)) {
+		if (twitter.card !== "player") {
+			warn(`An Twitter card type of \`${twitter.card}\` was provided to a config with player metadata. Twitter player cards must use a \`twitter:card\` value of \`"player"\`, so the player metadata will be ignored. Fix the \`twitter.card\` value or remove the \`twitter.player\` config to dismiss this warning.
+
+Read more: https://developer.twitter.com/en/docs/twitter-for-websites/cards/overview/markup`);
+			// @ts-ignore
+			delete twitter.player;
+		} else {
+			return "player";
+		}
+	}
+
+	if (
+		hasTwitterImageMeta(twitter) &&
+		!["summary", "summary_large_image", "player"].includes(twitter.card)
+	) {
+		if (twitter.card !== "player") {
+			warn(`An Twitter card type of \`${twitter.card}\` was provided to a config with image metadata. Cards that support image metadata are:
+- "summary"
+- "summary_large_image"
+- "player"
+
+The image metadata will be ignored. Fix the \`twitter.card\` value or remove the \`twitter.image\` config to dismiss this warning.
+
+Read more: https://developer.twitter.com/en/docs/twitter-for-websites/cards/overview/markup`);
+			// @ts-ignore
+			delete twitter.image;
+		}
+	}
+
+	return twitter.card as TwitterCardType;
+}
+
+function hasTwitterAppMeta(twitter: TwitterMeta): twitter is TwitterMeta & {
+	app: { name: Required<TwitterAppMeta["name"]> } & TwitterAppMeta;
+} {
+	return !!(twitter.app && twitter.app.name);
+}
+
+function hasTwitterPlayerMeta(twitter: TwitterMeta): twitter is TwitterMeta & {
+	player: TwitterPlayerMeta;
+} {
+	return !!(twitter.player && (twitter.player.url || twitter.player.stream));
+}
+
+function hasTwitterImageMeta(twitter: TwitterMeta): twitter is TwitterMeta & {
+	image: { url: Required<TwitterImageMeta["url"]> } & TwitterImageMeta;
+} {
+	return !!(twitter.image && twitter.image.url);
+}
+
+interface FacebookMeta {
+	appId?: string;
+}
+
+interface LanguageAlternate {
+	hrefLang: string;
+	href: string;
+}
+
+interface MobileAlternate {
+	media: string;
+	href: string;
+}
+
+interface OpenGraphArticle {
+	authors?: string[];
+	expirationTime?: string;
+	modifiedTime?: string;
+	publishedTime?: string;
+	section?: string;
+	tags?: string[];
+}
+
+interface OpenGraphBook {
+	authors?: string[];
+	isbn?: string;
+	releaseDate?: string;
+	tags?: string[];
+}
+
 interface OpenGraphMedia {
 	alt: string;
 	height?: number;
@@ -583,11 +786,6 @@ interface OpenGraphMedia {
 	type?: string;
 	url: string;
 	width?: number;
-}
-
-interface OpenGraphVideoActors {
-	profile: string;
-	role?: string;
 }
 
 interface OpenGraphMeta {
@@ -614,22 +812,6 @@ interface OpenGraphProfile {
 	username?: string;
 }
 
-interface OpenGraphBook {
-	authors?: string[];
-	isbn?: string;
-	releaseDate?: string;
-	tags?: string[];
-}
-
-interface OpenGraphArticle {
-	authors?: string[];
-	expirationTime?: string;
-	modifiedTime?: string;
-	publishedTime?: string;
-	section?: string;
-	tags?: string[];
-}
-
 interface OpenGraphVideo {
 	actors?: OpenGraphVideoActors[];
 	directors?: string[];
@@ -640,33 +822,10 @@ interface OpenGraphVideo {
 	writers?: string[];
 }
 
-interface TwitterMeta {
-	card?: string;
-	creator?: string;
-	description?: string;
-	site?: string;
-	title?: string;
-	image?: {
-		url: string;
-		alt: string;
-	};
+interface OpenGraphVideoActors {
+	profile: string;
+	role?: string;
 }
-
-interface FacebookMeta {
-	appId?: string;
-}
-
-interface MobileAlternate {
-	media: string;
-	href: string;
-}
-
-interface LanguageAlternate {
-	hrefLang: string;
-	href: string;
-}
-
-type ImagePrevSize = "none" | "standard" | "large";
 
 /**
  * @see https://developers.google.com/search/docs/advanced/robots/robots_meta_tag
@@ -696,7 +855,7 @@ interface RobotsOptions {
 	 * pages and canonical version of an article are shown in Search or Discover,
 	 * provide a value of `"standard"` or `"none"`.
 	 */
-	maxImagePreview?: ImagePrevSize;
+	maxImagePreview?: "none" | "standard" | "large";
 	/**
 	 * The maximum of number characters to use as a textual snippet for a search
 	 * result. (Note that a URL may appear as multiple search results within a
@@ -796,6 +955,92 @@ interface RobotsOptions {
 	 * By default there is no expiration date for content.
 	 */
 	unavailableAfter?: string;
+}
+
+/**
+ * @see https://developer.twitter.com/en/docs/twitter-for-websites/cards/overview/markup
+ */
+interface TwitterMeta {
+	/**
+	 * The card type. Used with all cards.
+	 */
+	card?: TwitterCardType;
+	/**
+	 * The @username of content creator, which may be different than the @username
+	 * of the site itself. Used with `summary_large_image` cards.
+	 */
+	creator?: string | { id: string };
+	/**
+	 * Description of content (maximum 200 characters). Used with `summary`,
+	 * `summary_large_image`, and `player` cards.
+	 */
+	description?: string;
+	/**
+	 * The @username of the website. Used with `summary`, `summary_large_image`,
+	 * `app`, and `player` cards
+	 */
+	site?: string | { id: string };
+	/**
+	 * Title of content (max 70 characters). Used with `summary`, `summary_large_image`, and `player` cards
+	 */
+	title?: string;
+	/**
+	 * The image to use in the card. Images must be less than 5MB in size. JPG,
+	 * PNG, WEBP and GIF formats are supported. Only the first frame of an
+	 * animated GIF will be used. SVG is not supported. Used with `summary`,
+	 * `summary_large_image`, and `player` cards.
+	 */
+	image?: TwitterImageMeta;
+	/**
+	 * The video player to use in the card. Used with the `player` card.
+	 */
+	player?: TwitterPlayerMeta;
+	/**
+	 * Meta used with the `app` card.
+	 */
+	app?: TwitterAppMeta;
+}
+
+type TwitterCardType = "app" | "player" | "summary" | "summary_large_image";
+
+interface TwitterImageMeta {
+	/**
+	 * The URL of the image to use in the card. This must be an absolute URL,
+	 * *not* a relative path.
+	 */
+	url: string;
+	/**
+	 * A text description of the image conveying the essential nature of an image
+	 * to users who are visually impaired. Maximum 420 characters.
+	 */
+	alt: string;
+}
+
+interface TwitterPlayerMeta {
+	/**
+	 * The URL to the player iframe. This must be an absolute URL, *not* a
+	 * relative path.
+	 */
+	url: string;
+	/**
+	 * The URL to raw video or audio stream. This must be an absolute URL, *not* a
+	 * relative path.
+	 */
+	stream?: string;
+	/**
+	 * Height of the player iframe in pixels.
+	 */
+	height?: number;
+	/**
+	 * Width of the player iframe in pixels.
+	 */
+	width?: number;
+}
+
+interface TwitterAppMeta {
+	name: string | { iPhone?: string; iPad?: string; googlePlay?: string };
+	id: { iPhone?: string; iPad?: string; googlePlay?: string };
+	url: { iPhone?: string; iPad?: string; googlePlay?: string };
 }
 
 export interface SeoConfig {
