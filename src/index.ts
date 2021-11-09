@@ -568,11 +568,11 @@ function warn(message: string): void {
 	} catch (e) {}
 }
 
-function warnIfInvalidUrl(str: string, warning: string) {
+function warnIfInvalidUrl(str: string, message: string) {
 	try {
 		new URL(str);
 	} catch (_) {
-		warn(warning);
+		if (typeof console !== "undefined") console.warn("remix-seo: " + message);
 	}
 }
 
