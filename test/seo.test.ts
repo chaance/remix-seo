@@ -1,4 +1,10 @@
-import { getSeo } from "../src/index";
+import { getSeo as _getSeo } from "../src/index";
+
+let getSeo = _getSeo;
+try {
+	// @ts-ignore
+	getSeo = require("../dist/index").getSeo;
+} catch (_) {}
 
 describe("without default options", () => {
 	let seo = getSeo();
@@ -71,15 +77,21 @@ describe("with default options", () => {
 });
 
 describe("twitter config", () => {
+	let warn = console.warn;
+	beforeEach(() => {
+		console.warn = jest.fn();
+	});
+
+	afterEach(() => {
+		console.warn = warn;
+	});
+
 	let seo = getSeo({
 		title: "Cheese and Crackers",
 		description: "A great website about eating delicious cheese and crackers.",
 	});
 
 	it("warns when an invalid URL is provided to twitter:image", () => {
-		let warn = console.warn;
-		console.warn = jest.fn();
-
 		seo({
 			twitter: {
 				image: {
@@ -89,14 +101,9 @@ describe("twitter config", () => {
 			},
 		});
 		expect(console.warn).toHaveBeenCalledTimes(1);
-
-		console.warn = warn;
 	});
 
 	it("does not warn when a valid URL is provided to twitter:image", () => {
-		let warn = console.warn;
-		console.warn = jest.fn();
-
 		seo({
 			twitter: {
 				image: {
@@ -106,14 +113,9 @@ describe("twitter config", () => {
 			},
 		});
 		expect(console.warn).not.toHaveBeenCalled();
-
-		console.warn = warn;
 	});
 
 	it("warns when an invalid card type is passed", () => {
-		let warn = console.warn;
-		console.warn = jest.fn();
-
 		seo({
 			twitter: {
 				// @ts-expect-error
@@ -121,14 +123,10 @@ describe("twitter config", () => {
 			},
 		});
 		expect(console.warn).toHaveBeenCalledTimes(1);
-		console.warn = warn;
 	});
 
 	describe("when card is set to 'app'", () => {
 		it("warns when image meta is provided", () => {
-			let warn = console.warn;
-			console.warn = jest.fn();
-
 			seo({
 				twitter: {
 					card: "app",
@@ -152,14 +150,9 @@ describe("twitter config", () => {
 				},
 			});
 			expect(console.warn).toHaveBeenCalledTimes(1);
-
-			console.warn = warn;
 		});
 
 		it("warns when player meta is provided", () => {
-			let warn = console.warn;
-			console.warn = jest.fn();
-
 			seo({
 				twitter: {
 					card: "app",
@@ -182,8 +175,6 @@ describe("twitter config", () => {
 				},
 			});
 			expect(console.warn).toHaveBeenCalledTimes(1);
-
-			console.warn = warn;
 		});
 
 		it("ignores image meta", () => {
@@ -240,9 +231,6 @@ describe("twitter config", () => {
 
 	describe("when player metadata is provided", () => {
 		it("warns on invalid card type", () => {
-			let warn = console.warn;
-			console.warn = jest.fn();
-
 			seo({
 				twitter: {
 					card: "summary",
@@ -252,8 +240,6 @@ describe("twitter config", () => {
 				},
 			});
 			expect(console.warn).toHaveBeenCalledTimes(1);
-
-			console.warn = warn;
 		});
 
 		it("sets card type to 'player' if none is provided", () => {
