@@ -37,17 +37,17 @@ let [seoMeta, seoLinks] = getSeo({
 // SEO depends on route data?
 // call getSeoMeta and getSeoLinks individually in the relevant function.
 export let meta = ({ context }) => {
-  let seoMeta = getSeoMeta({
-    title: `Welcome ${context.name}`
-  });
-  return {
-    ...seoMeta,
-  };
+	let seoMeta = getSeoMeta({
+		title: `Welcome ${context.name}`
+	});
+	return {
+		...seoMeta,
+	};
 };
 export let links = ({ context }) => {
-  let seoLinks = getSeoLinks({
-    title: `Welcome ${context.name}`
-  });
-  return [...seoLinks];
+	let seoLinks = getSeoLinks({
+		title: `Welcome ${context.name}`
+	});
+	return [...seoLinks];
 };
 ```
