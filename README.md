@@ -28,7 +28,7 @@ export let links = () => [ ...seoLinks, { rel: "stylesheet", href: "/sick-styles
 // app/routes/some-route.tsx
 import { getSeo, getSeoMeta, getSeoLinks } from "~/seo.server";
 
-// no need for route data? Same basic API as before:
+// No need for route data? Get meta and links in one call.
 let [seoMeta, seoLinks] = getSeo({
 	title: "About us",
 	description: "We are great!",
