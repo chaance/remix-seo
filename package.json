@@ -20,7 +20,7 @@
 		"build": "run-s build:*",
 		"test": "jest",
 		"setup": "remix setup",
-		"postinstall": "patch-package && npm run setup"
+		"postinstall": "npm run setup"
 	},
 	"keywords": [
 		"react",
