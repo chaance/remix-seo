@@ -1,6 +1,6 @@
 {
 	"name": "remix-seo",
-	"version": "0.0.3",
+	"version": "1.0.0",
 	"description": "A package for easily managing SEO meta and link tags in Remix.",
 	"main": "./dist/index.js",
 	"module": "./dist/index.mjs",
@@ -75,8 +75,8 @@
 		"typescript": "^4.5.4"
 	},
 	"peerDependencies": {
-		"@remix-run/react": ">=0.20.1",
-		"remix": ">=0.20.1"
+		"@remix-run/react": ">=1.0.0",
+		"remix": ">=1.0.0"
 	},
 	"prettier": {
 		"useTabs": true,

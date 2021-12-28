@@ -3,53 +3,76 @@ import merge from "just-merge";
 import type { HtmlLinkDescriptor } from "@remix-run/react/links";
 import type { HtmlMetaDescriptor } from "@remix-run/react/routeModules";
 
-/**
- * A function for setting default SEO meta for Remix sites.
- *
- * @param defaultConfig - The default configuration object. Each of the returned
- * functions will merge their own config with the default config when called on
- * a specific route.
- * @returns An object with three methods to use for getting SEO link and meta
- * tags on the site's routes.
- */
-export function initSeo(defaultConfig?: SeoConfig): {
-	getSeo: SeoFunction;
-	getSeoMeta: SeoMetaFunction;
-	getSeoLinks: SeoLinksFunction;
-} {
-	const getSeo: SeoFunction = (
-		cfg?: SeoConfig | ((routeArgs?: RouteArgs) => SeoConfig),
-		routeArgs?: RouteArgs
-	): [HtmlMetaDescriptor, HtmlLinkDescriptor[]] => {
-		let config = resolveConfig(defaultConfig, cfg, routeArgs);
-		let meta = getMeta(config, routeArgs);
-		let links = getLinks(config, routeArgs);
-		return [meta, links];
-	};
+// Internals
+import { warn, warnIfInvalidUrl } from "./utils";
+import type {
+	RouteArgs,
+	SeoConfig,
+	SeoFunction,
+	SeoLinksFunction,
+	SeoMetaFunction,
+	TwitterAppMeta,
+	TwitterCardType,
+	TwitterImageMeta,
+	TwitterMeta,
+	TwitterPlayerMeta,
+} from "../types";
 
-	const getSeoMeta: SeoMetaFunction = (
-		cfg?: SeoConfig | ((routeArgs?: RouteArgs) => SeoConfig),
-		routeArgs?: RouteArgs
-	): HtmlMetaDescriptor => {
-		let config = resolveConfig(defaultConfig, cfg, routeArgs);
-		let meta = getMeta(config, routeArgs);
-		return meta;
-	};
+function getLinks(config: SeoConfig, arg: any): HtmlLinkDescriptor[] {
+	let links: HtmlLinkDescriptor[] = [];
+	let { canonical, mobileAlternate, languageAlternates = [] } = config;
 
-	const getSeoLinks: SeoLinksFunction = (
-		cfg?: SeoConfig | ((routeArgs?: RouteArgs) => SeoConfig),
-		routeArgs?: RouteArgs
-	): HtmlLinkDescriptor[] => {
-		let config = resolveConfig(defaultConfig, cfg, routeArgs);
-		let links = getLinks(config, routeArgs);
-		return links;
-	};
+	if (canonical) {
+		warnIfInvalidUrl(
+			canonical,
+			`The canonical link tag must have an \`href\` with a valid, absolute URL. Relative paths will not work as expected. Check the config's \`canonical\` value.`
+		);
+		links.push({
+			rel: "canonical",
+			href: canonical,
+		});
+	}
 
-	return {
-		getSeo,
-		getSeoMeta,
-		getSeoLinks,
-	};
+	// <link rel="alternate">
+	if (mobileAlternate) {
+		if (!mobileAlternate.media || !mobileAlternate.href) {
+			warn([
+				"`mobileAlternate` requires both the `media` and `href` attributes for it to generate the correct link tags. This config setting currently has no effect. Either add the missing keys or remove `mobileAlternate` from your config to dismiss this warning.",
+				"\n",
+				// TODO: See if we can find a better description of this tag w/o all
+				// the marketing junk. MDN is a bit scant here.
+				"See https://www.contentkingapp.com/academy/link-rel/#mobile-lok for a description of the tag this option generates.",
+			]);
+		} else {
+			links.push({
+				rel: "alternate",
+				media: mobileAlternate.media,
+				href: mobileAlternate.href,
+			});
+		}
+	}
+
+	if (languageAlternates.length > 0) {
+		for (let languageAlternate of languageAlternates) {
+			if (!languageAlternate.hrefLang || !languageAlternate.href) {
+				warn([
+					"Items in `languageAlternates` requires both the `hrefLang` and `href` attributes for it to generate the correct link tags. One of your items in this config setting is missing an attribute and was skipped. Either add the missing keys or remove the incomplete object from the `languageAlternate` key in your config to dismiss this warning.",
+					"\n",
+					// TODO: See if we can find a better description of this tag w/o all
+					// the marketing junk. MDN is a bit scant here.
+					"See https://www.contentkingapp.com/academy/link-rel/#hreflang-look-like for a description of the tag this option generates.",
+				]);
+			} else {
+				links.push({
+					rel: "alternate",
+					hrefLang: languageAlternate.hrefLang,
+					href: languageAlternate.href,
+				});
+			}
+		}
+	}
+
+	return links;
 }
 
 function getMeta(config: SeoConfig, arg: any) {
@@ -151,9 +174,9 @@ function getMeta(config: SeoConfig, arg: any) {
 			if (twitter.image!.alt) {
 				meta["twitter:image:alt"] = twitter.image.alt;
 			} else {
-				warn(
-					"A Twitter image should use alt text that describes the image. This is important for users who are visually impaired. Please add a text value to the `alt` key of the `twitter.image` config option to dismiss this warning."
-				);
+				warn([
+					"A Twitter image should use alt text that describes the image. This is important for users who are visually impaired. Please add a text value to the `alt` key of the `twitter.image` config option to dismiss this warning.",
+				]);
 			}
 		}
 
@@ -409,9 +432,9 @@ function getMeta(config: SeoConfig, arg: any) {
 				if (image.alt) {
 					meta["og:image:alt"] = image.alt;
 				} else {
-					warn(
-						"OpenGraph images should use alt text that describes the image. This is important for users who are visually impaired. Please add a text value to the `alt` key of all `openGraph.images` config options to dismiss this warning."
-					);
+					warn([
+						"OpenGraph images should use alt text that describes the image. This is important for users who are visually impaired. Please add a text value to the `alt` key of all `openGraph.images` config options to dismiss this warning.",
+					]);
 				}
 
 				if (image.secureUrl) {
@@ -481,63 +504,6 @@ function getMeta(config: SeoConfig, arg: any) {
 	return meta;
 }
 
-function getLinks(config: SeoConfig, arg: any): HtmlLinkDescriptor[] {
-	let links: HtmlLinkDescriptor[] = [];
-	let { canonical, mobileAlternate, languageAlternates = [] } = config;
-
-	if (canonical) {
-		warnIfInvalidUrl(
-			canonical,
-			`The canonical link tag must have an \`href\` with a valid, absolute URL. Relative paths will not work as expected. Check the config's \`canonical\` value.`
-		);
-		links.push({
-			rel: "canonical",
-			href: canonical,
-		});
-	}
-
-	// <link rel="alternate">
-	if (mobileAlternate) {
-		if (!mobileAlternate.media || !mobileAlternate.href) {
-			warn(
-				"`mobileAlternate` requires both the `media` and `href` attributes for it to generate the correct link tags. This config setting currently has no effect. Either add the missing keys or remove `mobileAlternate` from your config to dismiss this warning." +
-					// TODO: See if we can find a better description of this tag w/o all
-					// the marketing junk. MDN is a bit scant here.
-					"\n\nSee https://www.contentkingapp.com/academy/link-rel/#mobile-lok for a description of the tag this option generates."
-			);
-		} else {
-			links.push({
-				rel: "alternate",
-				media: mobileAlternate.media,
-				href: mobileAlternate.href,
-			});
-		}
-	}
-
-	if (languageAlternates.length > 0) {
-		for (let languageAlternate of languageAlternates) {
-			if (!languageAlternate.hrefLang || !languageAlternate.href) {
-				warn(
-					"Items in `languageAlternates` requires both the `hrefLang` and `href` attributes for it to generate the correct link tags. One of your items in this config setting is missing an attribute and was skipped. Either add the missing keys or remove the incomplete object from the `languageAlternate` key in your config to dismiss this warning." +
-						// TODO: See if we can find a better description of this tag w/o all
-						// the marketing junk. MDN is a bit scant here.
-						"\n\nSee https://www.contentkingapp.com/academy/link-rel/#hreflang-look-like for a description of the tag this option generates."
-				);
-			} else {
-				links.push({
-					rel: "alternate",
-					hrefLang: languageAlternate.hrefLang,
-					href: languageAlternate.href,
-				});
-			}
-		}
-	}
-
-	return links;
-}
-
-export default initSeo;
-
 function getSeoTitle(config: SeoConfig): string {
 	let bypassTemplate = config.bypassTemplate || false;
 	let templateTitle = config.titleTemplate || "";
@@ -551,105 +517,6 @@ function getSeoTitle(config: SeoConfig): string {
 		updatedTitle = config.defaultTitle;
 	}
 	return updatedTitle;
-}
-
-function warn(message: string): void {
-	if (typeof console !== "undefined") console.warn("remix-seo: " + message);
-	try {
-		// This error is thrown as a convenience so you can more easily
-		// find the source for a warning that appears in the console by
-		// enabling "pause on exceptions" in your JavaScript debugger.
-		throw new Error("remix-seo: " + message);
-	} catch (e) {}
-}
-
-function warnIfInvalidUrl(str: string, message: string) {
-	try {
-		new URL(str);
-	} catch (_) {
-		if (typeof console !== "undefined") console.warn("remix-seo: " + message);
-	}
-}
-
-function validateTwitterCard(
-	twitter: TwitterMeta
-): TwitterCardType | undefined {
-	if (!twitter.card) {
-		return;
-	}
-
-	if (
-		!["app", "player", "summary", "summary_large_image"].includes(twitter.card)
-	) {
-		warn(`An invalid Twitter card was provided to the config and will be ignored. Make sure that \`twitter.card\` is set to one of the following:
-- "app"
-- "player"
-- "summary"
-- "summary_large_image"
-
-Read more: https://developer.twitter.com/en/docs/twitter-for-websites/cards/overview/markup`);
-		return;
-	}
-
-	if (hasTwitterAppMeta(twitter)) {
-		if (twitter.card !== "app") {
-			warn(`An Twitter card type of \`${twitter.card}\` was provided to a config with app metadata. Twitter app cards must use a \`twitter:card\` value of \`"app"\`, so the app metadata will be ignored. Fix the \`twitter.card\` value or remove the \`twitter.app\` config to dismiss this warning.
-
-Read more: https://developer.twitter.com/en/docs/twitter-for-websites/cards/overview/markup`);
-			// @ts-ignore
-			delete twitter.app;
-		} else {
-			if (hasTwitterImageMeta(twitter)) {
-				warn(`The Twitter app card type does not support the twitter:image metadata provided in your config. Remove the \`twitter.image\` config to dismiss this warning.
-
-	Read more: https://developer.twitter.com/en/docs/twitter-for-websites/cards/overview/markup`);
-				// @ts-ignore
-				delete twitter.image;
-			}
-
-			if (hasTwitterPlayerMeta(twitter)) {
-				warn(`The Twitter app card type does not support the twitter:player metadata provided in your config. Remove the \`twitter.player\` config to dismiss this warning.
-
-	Read more: https://developer.twitter.com/en/docs/twitter-for-websites/cards/overview/markup`);
-				// @ts-ignore
-				delete twitter.player;
-			}
-
-			return "app";
-		}
-	}
-
-	if (hasTwitterPlayerMeta(twitter)) {
-		if (twitter.card !== "player") {
-			warn(`An Twitter card type of \`${twitter.card}\` was provided to a config with player metadata. Twitter player cards must use a \`twitter:card\` value of \`"player"\`, so the player metadata will be ignored. Fix the \`twitter.card\` value or remove the \`twitter.player\` config to dismiss this warning.
-
-Read more: https://developer.twitter.com/en/docs/twitter-for-websites/cards/overview/markup`);
-			// @ts-ignore
-			delete twitter.player;
-		} else {
-			return "player";
-		}
-	}
-
-	if (
-		hasTwitterImageMeta(twitter) &&
-		!["summary", "summary_large_image", "player"].includes(twitter.card)
-	) {
-		if (twitter.card !== "player") {
-			warn(`An Twitter card type of \`${twitter.card}\` was provided to a config with image metadata. Cards that support image metadata are:
-- "summary"
-- "summary_large_image"
-- "player"
-
-The image metadata will be ignored. Fix the \`twitter.card\` value or remove the \`twitter.image\` config to dismiss this warning.
-
-Read more: https://developer.twitter.com/en/docs/twitter-for-websites/cards/overview/markup`);
-			// @ts-ignore
-			delete twitter.image;
-		}
-	}
-
-	return twitter.card as TwitterCardType;
 }
 
 function hasTwitterAppMeta(twitter: TwitterMeta): twitter is TwitterMeta & {
@@ -685,339 +552,148 @@ function resolveConfig(
 	return config;
 }
 
-interface FacebookMeta {
-	appId?: string;
-}
+function validateTwitterCard(
+	twitter: TwitterMeta
+): TwitterCardType | undefined {
+	if (!twitter.card) {
+		return;
+	}
 
-interface LanguageAlternate {
-	hrefLang: string;
-	href: string;
-}
+	if (
+		!["app", "player", "summary", "summary_large_image"].includes(twitter.card)
+	) {
+		warn([
+			"An invalid Twitter card was provided to the config and will be ignored. Make sure that `twitter.card` is set to one of the following:",
+			"\n",
+			"- app",
+			"- player",
+			"- summary",
+			"- summary_large_image",
+			"\n",
+			"Read more: https://developer.twitter.com/en/docs/twitter-for-websites/cards/overview/markup",
+		]);
+		return;
+	}
 
-interface MobileAlternate {
-	media: string;
-	href: string;
-}
+	if (hasTwitterAppMeta(twitter)) {
+		if (twitter.card !== "app") {
+			warn([
+				`An Twitter card type of \`${twitter.card}\` was provided to a config with app metadata. Twitter app cards must use a \`twitter:card\` value of \`"app"\`, so the app metadata will be ignored. Fix the \`twitter.card\` value or remove the \`twitter.app\` config to dismiss this warning.`,
+				"\n",
+				"Read more: https://developer.twitter.com/en/docs/twitter-for-websites/cards/overview/markup",
+			]);
+			// @ts-ignore
+			delete twitter.app;
+		} else {
+			if (hasTwitterImageMeta(twitter)) {
+				warn([
+					`The Twitter app card type does not support the twitter:image metadata provided in your config. Remove the \`twitter.image\` config to dismiss this warning.`,
+					"\n",
+					"Read more: https://developer.twitter.com/en/docs/twitter-for-websites/cards/overview/markup",
+				]);
+				// @ts-ignore
+				delete twitter.image;
+			}
 
-interface OpenGraphArticle {
-	authors?: string[];
-	expirationTime?: string;
-	modifiedTime?: string;
-	publishedTime?: string;
-	section?: string;
-	tags?: string[];
-}
+			if (hasTwitterPlayerMeta(twitter)) {
+				warn([
+					`The Twitter app card type does not support the twitter:player metadata provided in your config. Remove the \`twitter.player\` config to dismiss this warning.`,
+					"\n",
+					"Read more: https://developer.twitter.com/en/docs/twitter-for-websites/cards/overview/markup",
+				]);
+				// @ts-ignore
+				delete twitter.player;
+			}
 
-interface OpenGraphBook {
-	authors?: string[];
-	isbn?: string;
-	releaseDate?: string;
-	tags?: string[];
-}
+			return "app";
+		}
+	}
 
-interface OpenGraphMedia {
-	alt: string;
-	height?: number;
-	secureUrl?: string;
-	type?: string;
-	url: string;
-	width?: number;
-}
+	if (hasTwitterPlayerMeta(twitter)) {
+		if (twitter.card !== "player") {
+			warn([
+				`An Twitter card type of \`${twitter.card}\` was provided to a config with player metadata. Twitter player cards must use a \`twitter:card\` value of \`"player"\`, so the player metadata will be ignored. Fix the \`twitter.card\` value or remove the \`twitter.player\` config to dismiss this warning.`,
+				"\n",
+				"Read more: https://developer.twitter.com/en/docs/twitter-for-websites/cards/overview/markup",
+			]);
+			// @ts-ignore
+			delete twitter.player;
+		} else {
+			return "player";
+		}
+	}
 
-interface OpenGraphMeta {
-	article?: OpenGraphArticle;
-	book?: OpenGraphBook;
-	defaultImageHeight?: number;
-	defaultImageWidth?: number;
-	description?: string;
-	images?: OpenGraphMedia[];
-	locale?: string;
-	profile?: OpenGraphProfile;
-	siteName?: string;
-	title?: string;
-	type?: string;
-	url?: string;
-	video?: OpenGraphVideo;
-	videos?: OpenGraphMedia[];
-}
+	if (
+		hasTwitterImageMeta(twitter) &&
+		!["summary", "summary_large_image", "player"].includes(twitter.card)
+	) {
+		if (twitter.card !== "player") {
+			warn([
+				`An Twitter card type of \`${twitter.card}\` was provided to a config with image metadata. Cards that support image metadata are:`,
+				"\n",
+				"- summary",
+				"- summary_large_image",
+				"- player",
+				"\n",
+				`The image metadata will be ignored. Fix the \`twitter.card\` value or remove the \`twitter.image\` config to dismiss this warning.`,
+				"\n",
+				"Read more: https://developer.twitter.com/en/docs/twitter-for-websites/cards/overview/markup",
+			]);
+			// @ts-ignore
+			delete twitter.image;
+		}
+	}
 
-interface OpenGraphProfile {
-	firstName?: string;
-	lastName?: string;
-	gender?: string;
-	username?: string;
-}
-
-interface OpenGraphVideo {
-	actors?: OpenGraphVideoActors[];
-	directors?: string[];
-	duration?: number;
-	releaseDate?: string;
-	series?: string;
-	tags?: string[];
-	writers?: string[];
-}
-
-interface OpenGraphVideoActors {
-	profile: string;
-	role?: string;
-}
-
-/**
- * @see https://developers.google.com/search/docs/advanced/robots/robots_meta_tag
- */
-interface RobotsOptions {
-	/**
-	 * Set the maximum size of an image preview for this page in a search results.
-	 *
-	 * If false, Google may show an image preview of the default size.
-	 *
-	 * Accepted values are:
-	 *
-	 * - **none:** No image preview is to be shown.
-	 * - **standard:** A default image preview may be shown.
-	 * - **large:** A larger image preview, up to the width of the viewport, may
-	 *   be shown.
-	 *
-	 * This applies to all forms of search results (such as Google web search,
-	 * Google Images, Discover, Assistant). However, this limit does not apply in
-	 * cases where a publisher has separately granted permission for use of
-	 * content. For instance, if the publisher supplies content in the form of
-	 * in-page structured data (such as AMP and canonical versions of an article)
-	 * or has a license agreement with Google, this setting will not interrupt
-	 * those more specific permitted uses.
-	 *
-	 * If you don't want Google to use larger thumbnail images when their AMP
-	 * pages and canonical version of an article are shown in Search or Discover,
-	 * provide a value of `"standard"` or `"none"`.
-	 */
-	maxImagePreview?: "none" | "standard" | "large";
-	/**
-	 * The maximum of number characters to use as a textual snippet for a search
-	 * result. (Note that a URL may appear as multiple search results within a
-	 * search results page.)
-	 *
-	 * This does **not** affect image or video previews. This applies to all forms
-	 * of search results (such as Google web search, Google Images, Discover,
-	 * Assistant). However, this limit does not apply in cases where a publisher
-	 * has separately granted permission for use of content. For instance, if the
-	 * publisher supplies content in the form of in-page structured data or has a
-	 * license agreement with Google, this setting does not interrupt those more
-	 * specific permitted uses. This directive is ignored if no parseable value is
-	 * specified.
-	 *
-	 * Special values:
-	 * - 0: No snippet is to be shown. Equivalent to nosnippet.
-	 * - 1: Google will choose the snippet length that it believes is most
-	 *   effective to help users discover your content and direct users to your
-	 *   site.
-	 *
-	 * To specify that there's no limit on the number of characters that can be
-	 * shown in the snippet, `maxSnippet` should be set to `-1`.
-	 */
-	maxSnippet?: number;
-	/**
-	 * The maximum number of seconds for videos on this page to show in search
-	 * results.
-	 *
-	 * If false, Google may show a video snippet in search results and will decide
-	 * how long the preview may be.
-	 *
-	 * Special values:
-	 *
-	 * - 0: At most, a static image may be used, in accordance to the
-	 *   `maxImagePreview` setting.
-	 * - 1: There is no limit.
-	 *
-	 * This applies to all forms of search results (at Google: web search, Google
-	 * Images, Google Videos, Discover, Assistant).
-	 */
-	maxVideoPreview?: number;
-	/**
-	 * Do not show a cached link in search results.
-	 *
-	 * If false, Google may generate a cached page and users may access it through
-	 * the search results.
-	 */
-	noArchive?: boolean;
-	/**
-	 * Do not follow the links on this page.
-	 *
-	 * If false, Google may use the links on the page to discover those linked
-	 * pages.
-	 *
-	 * @see https://developers.google.com/search/docs/advanced/guidelines/qualify-outbound-links
-	 */
-	noFollow?: boolean;
-	/**
-	 * Do not index images on this page.
-	 *
-	 * If false, images on the page may be indexed and shown in search results.
-	 */
-	noImageIndex?: boolean;
-	/**
-	 * Do not show this page, media, or resource in search results.
-	 *
-	 * If false, the page, media, or resource may be indexed and shown in search
-	 * results.
-	 */
-	noIndex?: boolean;
-	/**
-	 * Do not show a text snippet or video preview in the search results for this
-	 * page. A static image thumbnail (if available) may still be visible, when it
-	 * results in a better user experience. This applies to all forms of search
-	 * results (at Google: web search, Google Images, Discover).
-	 *
-	 * If false, Google may generate a text snippet and video preview based on
-	 * information found on the page.
-	 */
-	noSnippet?: boolean;
-	/**
-	 * Do not offer translation of this page in search results.
-	 *
-	 * If false, Google may show a link next to the result to help users view
-	 * translated content on your page.
-	 */
-	noTranslate?: boolean;
-	/**
-	 * Do not show this page in search results after the specified date/time.
-	 *
-	 * The date/time must be specified in a widely adopted format including, but
-	 * not limited to [RFC 822](http://www.ietf.org/rfc/rfc0822.txt), [RFC
-	 * 850](http://www.ietf.org/rfc/rfc0850.txt), and [ISO
-	 * 8601](https://www.iso.org/iso-8601-date-and-time-format.html). The
-	 * directive is ignored if no valid date/time is specified.
-	 *
-	 * By default there is no expiration date for content.
-	 */
-	unavailableAfter?: string;
+	return twitter.card as TwitterCardType;
 }
 
 /**
- * @see https://developer.twitter.com/en/docs/twitter-for-websites/cards/overview/markup
+ * A function for setting default SEO meta for Remix sites.
+ *
+ * @param defaultConfig - The default configuration object. Each of the returned
+ * functions will merge their own config with the default config when called on
+ * a specific route.
+ * @returns An object with three methods to use for getting SEO link and meta
+ * tags on the site's routes.
  */
-interface TwitterMeta {
-	/**
-	 * The card type. Used with all cards.
-	 */
-	card?: TwitterCardType;
-	/**
-	 * The @username of content creator, which may be different than the @username
-	 * of the site itself. Used with `summary_large_image` cards.
-	 */
-	creator?: string | { id: string };
-	/**
-	 * Description of content (maximum 200 characters). Used with `summary`,
-	 * `summary_large_image`, and `player` cards.
-	 */
-	description?: string;
-	/**
-	 * The @username of the website. Used with `summary`, `summary_large_image`,
-	 * `app`, and `player` cards
-	 */
-	site?: string | { id: string };
-	/**
-	 * Title of content (max 70 characters). Used with `summary`, `summary_large_image`, and `player` cards
-	 */
-	title?: string;
-	/**
-	 * The image to use in the card. Images must be less than 5MB in size. JPG,
-	 * PNG, WEBP and GIF formats are supported. Only the first frame of an
-	 * animated GIF will be used. SVG is not supported. Used with `summary`,
-	 * `summary_large_image`, and `player` cards.
-	 */
-	image?: TwitterImageMeta;
-	/**
-	 * The video player to use in the card. Used with the `player` card.
-	 */
-	player?: TwitterPlayerMeta;
-	/**
-	 * Meta used with the `app` card.
-	 */
-	app?: TwitterAppMeta;
+function initSeo(defaultConfig?: SeoConfig): {
+	getSeo: SeoFunction;
+	getSeoMeta: SeoMetaFunction;
+	getSeoLinks: SeoLinksFunction;
+} {
+	const getSeo: SeoFunction = (
+		cfg?: SeoConfig | ((routeArgs?: RouteArgs) => SeoConfig),
+		routeArgs?: RouteArgs
+	): [HtmlMetaDescriptor, HtmlLinkDescriptor[]] => {
+		let config = resolveConfig(defaultConfig, cfg, routeArgs);
+		let meta = getMeta(config, routeArgs);
+		let links = getLinks(config, routeArgs);
+		return [meta, links];
+	};
+
+	const getSeoMeta: SeoMetaFunction = (
+		cfg?: SeoConfig | ((routeArgs?: RouteArgs) => SeoConfig),
+		routeArgs?: RouteArgs
+	): HtmlMetaDescriptor => {
+		let config = resolveConfig(defaultConfig, cfg, routeArgs);
+		let meta = getMeta(config, routeArgs);
+		return meta;
+	};
+
+	const getSeoLinks: SeoLinksFunction = (
+		cfg?: SeoConfig | ((routeArgs?: RouteArgs) => SeoConfig),
+		routeArgs?: RouteArgs
+	): HtmlLinkDescriptor[] => {
+		let config = resolveConfig(defaultConfig, cfg, routeArgs);
+		let links = getLinks(config, routeArgs);
+		return links;
+	};
+
+	return {
+		getSeo,
+		getSeoMeta,
+		getSeoLinks,
+	};
 }
 
-type TwitterCardType = "app" | "player" | "summary" | "summary_large_image";
-
-interface TwitterImageMeta {
-	/**
-	 * The URL of the image to use in the card. This must be an absolute URL,
-	 * *not* a relative path.
-	 */
-	url: string;
-	/**
-	 * A text description of the image conveying the essential nature of an image
-	 * to users who are visually impaired. Maximum 420 characters.
-	 */
-	alt: string;
-}
-
-interface TwitterPlayerMeta {
-	/**
-	 * The URL to the player iframe. This must be an absolute URL, *not* a
-	 * relative path.
-	 */
-	url: string;
-	/**
-	 * The URL to raw video or audio stream. This must be an absolute URL, *not* a
-	 * relative path.
-	 */
-	stream?: string;
-	/**
-	 * Height of the player iframe in pixels.
-	 */
-	height?: number;
-	/**
-	 * Width of the player iframe in pixels.
-	 */
-	width?: number;
-}
-
-interface TwitterAppMeta {
-	name: string | { iPhone?: string; iPad?: string; googlePlay?: string };
-	id: { iPhone?: string; iPad?: string; googlePlay?: string };
-	url: { iPhone?: string; iPad?: string; googlePlay?: string };
-}
-
-export interface SeoConfig {
-	bypassTemplate?: boolean;
-	canonical?: string;
-	defaultTitle?: string;
-	description?: string;
-	facebook?: FacebookMeta;
-	languageAlternates?: LanguageAlternate[];
-	mobileAlternate?: MobileAlternate;
-	omitGoogleBotMeta?: boolean;
-	openGraph?: OpenGraphMeta;
-	robots?: RobotsOptions;
-	title?: string;
-	titleTemplate?: string;
-	twitter?: TwitterMeta;
-}
-
-// TODO: Use Remix/RR types
-interface RouteArgs {
-	data: any;
-	parentsData: RouteData;
-	params: Params; // Params<string>;
-	location: Location;
-}
-type RouteData = any;
-type Params<T = any> = any & T;
-type Location = any;
-
-interface SeoBaseFunction<Return> {
-	(config?: SeoConfig): Return;
-	(
-		config: SeoConfig | ((routeArgs?: RouteArgs) => SeoConfig),
-		routeArgs: RouteArgs
-	): Return;
-}
-
-export interface SeoFunction
-	extends SeoBaseFunction<[HtmlMetaDescriptor, HtmlLinkDescriptor[]]> {}
-
-export interface SeoMetaFunction extends SeoBaseFunction<HtmlMetaDescriptor> {}
-
-export interface SeoLinksFunction
-	extends SeoBaseFunction<HtmlLinkDescriptor[]> {}
+export { initSeo };
