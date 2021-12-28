@@ -39,9 +39,7 @@ function getLinks(config: SeoConfig, arg: any): HtmlLinkDescriptor[] {
 			warn([
 				"`mobileAlternate` requires both the `media` and `href` attributes for it to generate the correct link tags. This config setting currently has no effect. Either add the missing keys or remove `mobileAlternate` from your config to dismiss this warning.",
 				"\n",
-				// TODO: See if we can find a better description of this tag w/o all
-				// the marketing junk. MDN is a bit scant here.
-				"See https://www.contentkingapp.com/academy/link-rel/#mobile-lok for a description of the tag this option generates.",
+				"See https://developers.google.com/search/mobile-sites/mobile-seo/other-devices#separate-urls for a description of the tag this option generates.",
 			]);
 		} else {
 			links.push({
@@ -58,9 +56,7 @@ function getLinks(config: SeoConfig, arg: any): HtmlLinkDescriptor[] {
 				warn([
 					"Items in `languageAlternates` requires both the `hrefLang` and `href` attributes for it to generate the correct link tags. One of your items in this config setting is missing an attribute and was skipped. Either add the missing keys or remove the incomplete object from the `languageAlternate` key in your config to dismiss this warning.",
 					"\n",
-					// TODO: See if we can find a better description of this tag w/o all
-					// the marketing junk. MDN is a bit scant here.
-					"See https://www.contentkingapp.com/academy/link-rel/#hreflang-look-like for a description of the tag this option generates.",
+					"See https://developers.google.com/search/docs/advanced/crawling/localized-versions#html for a description of the tag this option generates.",
 				]);
 			} else {
 				links.push({
