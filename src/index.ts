@@ -267,7 +267,7 @@ function getMeta(config: SeoConfig, arg: any) {
 			);
 			meta["twitter:image"] = twitter.image.url;
 			if (twitter.image!.alt) {
-				meta["twitter:image:alt"] = twitter.image.url;
+				meta["twitter:image:alt"] = twitter.image.alt;
 			} else {
 				warn(
 					"A Twitter image should use alt text that describes the image. This is important for users who are visually impaired. Please add a text value to the `alt` key of the `twitter.image` config option to dismiss this warning."
