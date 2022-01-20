@@ -7,7 +7,7 @@ WIP!
 ## Usage
 
 ```tsx
-// app/seo.server.ts
+// app/seo.ts
 import { initSeo } from "../src/index";
 export const { getSeo, getSeoMeta, getSeoLinks } = getSeo({
 	// Pass any SEO defaults for your site here.
@@ -19,14 +19,14 @@ export const { getSeo, getSeoMeta, getSeoLinks } = getSeo({
 });
 
 // app/root.tsx
-import { getSeo } from "~/seo.server";
+import { getSeo } from "~/seo";
 let [seoMeta, seoLinks] = getSeo();
 
 export let meta = () => ({ ...seoMeta, { whatever: "cool" } });
 export let links = () => [ ...seoLinks, { rel: "stylesheet", href: "/sick-styles.css" } ];
 
 // app/routes/some-route.tsx
-import { getSeo, getSeoMeta, getSeoLinks } from "~/seo.server";
+import { getSeo, getSeoMeta, getSeoLinks } from "~/seo";
 
 // No need for route data? Get meta and links in one call.
 let [seoMeta, seoLinks] = getSeo({
