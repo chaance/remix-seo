@@ -34,6 +34,75 @@ describe("init without default options", () => {
 			});
 			expect(links).toEqual([]);
 		});
+
+		it("fucks", () => {
+			let seo = getSeo({
+				title: "Best website ever",
+				description: "This is a really great website ya dork",
+				titleTemplate: "%s | Cool",
+				twitter: {
+					image: {
+						url: "https://somewhere.com/fake-path.jpg",
+						alt: "fake!",
+					},
+				},
+				bypassTemplate: false,
+				robots: {
+					noIndex: true,
+					noFollow: true,
+				},
+				canonical: "https://somewhere.com",
+				facebook: {
+					appId: "12345",
+				},
+				openGraph: {
+					siteName: "Best website ever, yeah!",
+					url: "https://somewhere.com",
+					images: [
+						{
+							url: "https://somewhere.com/fake-path.jpg",
+							alt: "fake!",
+							height: 200,
+							type: "jpg",
+						},
+					],
+				},
+			});
+
+			// meta
+			expect(seo[0]).toMatchInlineSnapshot(`
+			Object {
+			  "description": "This is a really great website ya dork",
+			  "fb:app_id": "12345",
+			  "googlebot": "noindex,nofollow",
+			  "og:description": "This is a really great website ya dork",
+			  "og:image": "https://somewhere.com/fake-path.jpg",
+			  "og:image:alt": "fake!",
+			  "og:image:height": "200",
+			  "og:image:type": "jpg",
+			  "og:site_name": "Best website ever, yeah!",
+			  "og:title": "Best website ever | Cool",
+			  "og:url": "https://somewhere.com",
+			  "robots": "noindex,nofollow",
+			  "title": "Best website ever | Cool",
+			  "twitter:card": "summary",
+			  "twitter:description": "This is a really great website ya dork",
+			  "twitter:image": "https://somewhere.com/fake-path.jpg",
+			  "twitter:image:alt": "fake!",
+			  "twitter:title": "Best website ever | Cool",
+			}
+		`);
+
+			// links
+			expect(seo[1]).toMatchInlineSnapshot(`
+			Array [
+			  Object {
+			    "href": "https://somewhere.com",
+			    "rel": "canonical",
+			  },
+			]
+		`);
+		});
 	});
 
 	describe("getSeoMeta", () => {
@@ -301,6 +370,18 @@ describe("twitter config", () => {
 				image: {
 					url: "/fake-path.jpg",
 					alt: "fake!",
+				},
+			},
+		});
+		expect(console.warn).toHaveBeenCalledTimes(1);
+	});
+
+	it("warns when alt text isn't provided to twitter:image", () => {
+		getSeo({
+			twitter: {
+				// @ts-expect-error
+				image: {
+					url: "https://somewhere.com/fake-path.jpg",
 				},
 			},
 		});
