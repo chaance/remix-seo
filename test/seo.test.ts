@@ -179,6 +179,46 @@ describe("init with default options", () => {
 				},
 			]);
 		});
+
+		it("a page does not overwrite the initial default config", () => {
+			let [meta, links] = getSeo({
+				title: "About us",
+				twitter: { card: "summary_large_image" },
+			});
+
+			expect(meta).toEqual({
+				title: "About us | Cheese and Crackers",
+				"og:title": "About us | Cheese and Crackers",
+				description:
+					"A great website about eating delicious cheese and crackers.",
+				"og:description":
+					"A great website about eating delicious cheese and crackers.",
+				"twitter:card": "summary_large_image",
+				"twitter:description":
+					"A great website about eating delicious cheese and crackers.",
+				"twitter:title": "About us | Cheese and Crackers",
+				googlebot: "index,follow",
+				robots: "index,follow",
+			});
+
+			expect(links).toEqual([
+				{
+					rel: "canonical",
+					href: "https://somewhere-a.com",
+				},
+			]);
+			let [newMeta] = getSeo();
+			expect(newMeta).toEqual({
+				title: "Cheese and Crackers | Cheese and Crackers",
+				"og:title": "Cheese and Crackers | Cheese and Crackers",
+				description:
+					"A great website about eating delicious cheese and crackers.",
+				"og:description":
+					"A great website about eating delicious cheese and crackers.",
+				googlebot: "index,follow",
+				robots: "index,follow",
+			});
+		});
 	});
 
 	describe("getSeoMeta", () => {

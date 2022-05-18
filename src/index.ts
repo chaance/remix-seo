@@ -1,4 +1,3 @@
-import merge from "just-merge";
 import type { HtmlMetaDescriptor, HtmlLinkDescriptor } from "@remix-run/react";
 
 /**
@@ -678,7 +677,7 @@ function resolveConfig(
 			? localConfig(routeArgs)
 			: localConfig || {};
 
-	config = defaultConfig ? merge(defaultConfig, config) : config;
+	config = defaultConfig ? { ...defaultConfig, ...config } : config;
 
 	return config;
 }
