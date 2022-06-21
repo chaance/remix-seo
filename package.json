@@ -73,8 +73,7 @@
 		"typescript": "^4.5.5"
 	},
 	"peerDependencies": {
-		"@remix-run/react": ">=1.0.0",
-		"remix": ">=1.0.0"
+		"@remix-run/react": ">=1.0.0"
 	},
 	"prettier": {
 		"useTabs": true,
