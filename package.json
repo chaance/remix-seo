@@ -1,7 +1,7 @@
 {
 	"name": "remix-seo",
 	"version": "0.1.0",
-	"description": "A package for easily managing SEO meta and link tags in Remix.",
+	"description": "A package for easily managing SEO metadata tags in Remix.",
 	"main": "./dist/index.js",
 	"module": "./dist/index.mjs",
 	"types": "./dist/index.d.ts",
