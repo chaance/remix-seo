@@ -1,0 +1,44 @@
+name: 🧪 Test
+on:
+  push:
+    branches:
+      - main
+      - dev
+      - v0.2
+    paths-ignore:
+      - "LICENSE"
+      - "**/*.md"
+  pull_request:
+    paths-ignore:
+      - "LICENSE"
+      - "**/*.md"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: ⚡ Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: ⬇️ Checkout repo
+        uses: actions/checkout@v3
+
+      - name: ⎔ Setup node
+        uses: actions/setup-node@v3
+        with:
+          node-version-file: ".nvmrc"
+
+
+      - name: 📥 Install deps
+        uses: pnpm/action-setup@v2
+        with:
+          version: 7
+          run_install: |
+            - recursive: true
+              args: [--frozen-lockfile, --strict-peer-dependencies]
+            - args: [--global, prettier, typescript]
+
+      - name: ⚡ Run vitest
+        run: pnpm test:coverage
