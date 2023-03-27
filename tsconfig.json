@@ -1,17 +1,25 @@
 {
-	"exclude": ["node_modules"],
-	"include": ["remix.env.d.ts", "jest.d.ts", "src/**/*", "test/**/*"],
+	"$schema": "https://json.schemastore.org/tsconfig",
+	"include": ["."],
+	"exclude": ["node_modules", "dist"],
 	"compilerOptions": {
-		"lib": ["DOM", "DOM.Iterable", "ES2020"],
-		"target": "ES2020",
+		"lib": ["ES2022", "DOM", "DOM.Iterable"],
 		"module": "ES2020",
+		"target": "ES2020",
 		"allowJs": true,
 		"checkJs": true,
-		"esModuleInterop": true,
-		"moduleResolution": "Node",
-		"strict": true,
-		"skipLibCheck": true,
+		"emitDeclarationOnly": true,
 		"declaration": true,
-		"emitDeclarationOnly": true
+		"declarationMap": true,
+		"downlevelIteration": true,
+		"esModuleInterop": true,
+		"forceConsistentCasingInFileNames": true,
+		"inlineSources": false,
+		"isolatedModules": true,
+		"jsx": "react-jsx",
+		"moduleResolution": "node",
+		"resolveJsonModule": false,
+		"skipLibCheck": true,
+		"strict": true
 	}
 }

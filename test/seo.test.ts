@@ -1,8 +1,8 @@
 import { initSeo as _initSeo } from "../src/index";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 
 let initSeo = _initSeo;
 try {
-	// @ts-ignore
 	initSeo = require("../dist/index").initSeo;
 } catch (_) {}
 
@@ -71,7 +71,7 @@ describe("init without default options", () => {
 
 			// meta
 			expect(seo[0]).toMatchInlineSnapshot(`
-			Object {
+			{
 			  "description": "This is a really great website ya dork",
 			  "fb:app_id": "12345",
 			  "googlebot": "noindex,nofollow",
@@ -95,8 +95,8 @@ describe("init without default options", () => {
 
 			// links
 			expect(seo[1]).toMatchInlineSnapshot(`
-			Array [
-			  Object {
+			[
+			  {
 			    "href": "https://somewhere.com",
 			    "rel": "canonical",
 			  },
@@ -352,7 +352,7 @@ describe("init with default options based on route data", () => {
 describe("twitter config", () => {
 	let warn = console.warn;
 	beforeEach(() => {
-		console.warn = jest.fn();
+		console.warn = vi.fn();
 	});
 
 	afterEach(() => {
