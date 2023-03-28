@@ -860,7 +860,7 @@ function resolveConfig(
 	let config: SeoResolvedConfig = isFunction(localConfig)
 		? localConfig(routeArgs)
 		: { ...localConfig };
-	config = defaultConfig ? merge({ ...defaultConfig }, config) : config;
+	config = defaultConfig ? merge({}, defaultConfig, config) : config;
 	return config;
 }
 
