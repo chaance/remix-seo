@@ -1,13 +1,8 @@
 import merge from "just-merge";
-import type { V2_MetaDescriptor as MetaDescriptor } from "@remix-run/react";
-import {
-	isDate,
-	isFunction,
-	isObject,
-	isString,
-	isValidUrl,
-	warn,
-} from "./utils";
+import type {
+	V2_MetaDescriptor as MetaDescriptor,
+	V2_MetaArgs as MetaArgs,
+} from "@remix-run/react";
 
 /**
  * A function for setting default SEO meta for Remix sites.
@@ -18,33 +13,37 @@ import {
  * @returns An object with three methods to use for getting SEO link and meta
  * tags on the site's routes.
  */
-export function initSeo(initConfig?: SeoInitConfig): {
+function initSeo(initConfig?: SeoInitConfig): {
 	getSeo: SeoFunction;
 } {
 	const getSeo: SeoFunction = (
-		config?: SeoConfig | ((routeArgs?: RouteArgs) => SeoConfig),
-		routeArgs?: RouteArgs
+		config?: SeoConfig | ((routeArgs?: MetaArgs) => SeoConfig),
+		metaArgs?: MetaArgs
 	) => {
-		let resolvedConfig = resolveConfig(initConfig, config, routeArgs);
-		let meta = getMeta(resolvedConfig, routeArgs);
+		let resolvedConfig = resolveConfig(initConfig, config, metaArgs);
+		let meta = getMeta(resolvedConfig, metaArgs);
 		return meta;
 	};
 	return { getSeo };
 }
 
-function getMeta(config: SeoResolvedConfig, arg?: RouteArgs) {
+function getMeta(config: SeoResolvedConfig, metaArgs?: MetaArgs) {
 	let meta: MetaDescriptor[] = [];
-	let title = getSeoTitle(config);
+	let {
+		title,
+		twitter: twitterTitle,
+		openGraph: openGraphTitle,
+	} = getPageTitles(config);
 	let {
 		canonical,
 		description,
-		facebook,
+		facebook = {},
 		google = {},
 		languageAlternates = [],
 		mobileAlternate,
-		openGraph,
+		openGraph = {},
 		robots = {},
-		twitter,
+		twitter = {},
 		silenceWarnings = false,
 	} = config;
 
@@ -107,489 +106,503 @@ function getMeta(config: SeoResolvedConfig, arg?: RouteArgs) {
 		});
 	}
 
-	// OpenGraph tags
-	if (openGraph?.siteName != null) {
-		meta.push({ property: "og:site_name", content: openGraph.siteName });
-	}
-
-	let ogTitle = openGraph?.title ?? title;
-	if (ogTitle != null) {
-		meta.push({ property: "og:title", content: ogTitle });
-	}
-
-	let ogDescription = openGraph?.description ?? description;
-	if (ogDescription != null) {
-		meta.push({ property: "og:description", content: ogDescription });
-	}
-
-	if (openGraph?.url != null) {
-		warning(
-			isValidUrl(openGraph.url),
-			"The `og:url` tag must be a valid, absolute URL. Relative paths will " +
-				"not work as expected. Check the config's `openGraph.url` value."
-		);
-	}
-	let ogUrl = openGraph?.url ?? canonical;
-	if (ogUrl != null) {
-		meta.push({ property: "og:url", content: ogUrl });
-	}
-
-	if (openGraph?.type != null) {
-		let ogType = openGraph.type.toLowerCase();
-		meta.push({ property: "og:type", content: ogType });
-
-		// https://ogp.me/#types
-		switch (ogType) {
-			// https://ogp.me/#type_music
-			case "music.song": {
-				let {
-					duration,
-					albums = [],
-					musicians = [],
-				} = (openGraph.music as OpenGraphMusicSong) || {};
-				if (duration != null) {
-					meta.push({ property: "music:duration", content: duration });
-				}
-
-				for (let album of albums) {
-					if (album == null) continue;
-					if (isString(album)) {
-						meta.push({ property: "music:album", content: album });
-						continue;
-					}
-
-					let { url, disc, track } = album || {};
-					if (url != null) {
-						meta.push({ property: "music:album", content: url });
-					}
-					if (disc != null) {
-						meta.push({ property: "music:album:disc", content: disc });
-					}
-					if (track != null) {
-						meta.push({ property: "music:album:track", content: disc });
-					}
-				}
-
-				for (let musician of musicians) {
-					if (musician == null) continue;
-					if (isString(musician)) {
-						meta.push({ property: "music:musician", content: musician });
-					} else if (isObject(musician)) {
-						if (musician.url != null) {
-							meta.push({ property: "music:musician", content: musician.url });
-						}
-					}
-				}
-
-				break;
-			}
-
-			case "music.album": {
-				let {
-					musicians = [],
-					releaseDate,
-					songs = [],
-				} = (openGraph.music as OpenGraphMusicAlbum) || {};
-
-				for (let song of songs) {
-					if (song == null) continue;
-					if (isString(song)) {
-						meta.push({ property: "music:song", content: song });
-					} else if (isObject(song)) {
-						let { url, disc, track } = song || {};
-						if (url != null) {
-							meta.push({ property: "music:song", content: url });
-						}
-						if (disc != null) {
-							meta.push({ property: "music:song:disc", content: disc });
-						}
-						if (track != null) {
-							meta.push({ property: "music:song:track", content: track });
-						}
-					}
-				}
-
-				for (let musician of musicians) {
-					if (musician == null) continue;
-					if (isString(musician)) {
-						meta.push({ property: "music:musician", content: musician });
-					} else if (isObject(musician)) {
-						if (musician.url != null) {
-							meta.push({ property: "music:musician", content: musician.url });
-						}
-					}
-				}
-
-				if (releaseDate != null) {
-					meta.push({
-						property: "music:release_date",
-						content: isDate(releaseDate)
-							? releaseDate.toISOString()
-							: releaseDate,
-					});
-				}
-
-				break;
-			}
-
-			case "music.playlist": {
-				let { creators = [], songs = [] } =
-					(openGraph.music as OpenGraphMusicPlaylist) || {};
-
-				for (let creator of creators) {
-					if (creator == null) continue;
-					if (isString(creator)) {
-						meta.push({ property: "music:creators", content: creator });
-					} else if (isObject(creator)) {
-						let { url } = creator;
-						if (url != null) {
-							meta.push({ property: "music:creators", content: url });
-						}
-					}
-				}
-
-				for (let song of songs) {
-					if (song == null) continue;
-					if (isString(song)) {
-						meta.push({ property: "music:song", content: song });
-					} else if (isObject(song)) {
-						let { url, disc, track } = song || {};
-						if (url != null) {
-							meta.push({ property: "music:song", content: url });
-						}
-						if (disc != null) {
-							meta.push({ property: "music:song:disc", content: disc });
-						}
-						if (track != null) {
-							meta.push({ property: "music:song:track", content: track });
-						}
-					}
-				}
-
-				break;
-			}
-
-			case "music.radio_station": {
-				let { creators = [] } =
-					(openGraph.music as OpenGraphMusicRadioStation) || {};
-
-				for (let creator of creators) {
-					if (creator == null) continue;
-					if (isString(creator)) {
-						meta.push({ property: "music:creators", content: creator });
-					} else if (isObject(creator)) {
-						let { url } = creator;
-						if (url != null) {
-							meta.push({ property: "music:creators", content: url });
-						}
-					}
-				}
-
-				break;
-			}
-
-			// https://ogp.me/#type_video
-			case "video.movie":
-			case "video.episode":
-			case "video.tv_show":
-			case "video.other": {
-				let {
-					actors = [],
-					directors = [],
-					duration,
-					releaseDate,
-					series,
-					tags = [],
-					writers = [],
-				} = openGraph.video || {};
-
-				for (let actor of actors) {
-					if (actor == null) continue;
-					if (isString(actor)) {
-						meta.push({ property: "video:actor", content: actor });
-					} else if (isObject(actor)) {
-						let { url, role } = actor;
-						if (url != null) {
-							meta.push({ property: "video:actor", content: url });
-						}
-						if (role != null) {
-							meta.push({ property: "video:actor:role", content: role });
-						}
-					}
-				}
-
-				for (let director of directors) {
-					if (director == null) continue;
-					if (isString(director)) {
-						meta.push({ property: "video:director", content: director });
-					} else if (isObject(director)) {
-						let { url } = director;
-						if (url != null) {
-							meta.push({ property: "video:director", content: url });
-						}
-					}
-				}
-
-				for (let writer of writers) {
-					if (writer == null) continue;
-					if (isString(writer)) {
-						meta.push({ property: "video:writer", content: writer });
-					} else if (isObject(writer)) {
-						let { url } = writer;
-						if (url != null) {
-							meta.push({ property: "video:writer", content: url });
-						}
-					}
-				}
-
-				if (duration != null) {
-					meta.push({ property: "video:duration", content: duration });
-				}
-
-				if (releaseDate != null) {
-					meta.push({
-						property: "video:release_date",
-						content: isDate(releaseDate)
-							? releaseDate.toISOString()
-							: releaseDate,
-					});
-				}
-
-				for (let tag of tags) {
-					if (tag != null) {
-						meta.push({ property: "video:tag", content: tag });
-					}
-				}
-
-				if (series != null) {
-					meta.push({ property: "video:series", content: series });
-				}
-				break;
-			}
-
-			// https://ogp.me/#no_vertical
-			// https://ogp.me/#type_article
-			case "article": {
-				let {
-					authors = [],
-					publishedTime,
-					modifiedTime,
-					expirationTime,
-					section,
-					tags = [],
-				} = openGraph.article || {};
-
-				for (let author of authors) {
-					if (author != null) {
-						meta.push({ property: "article:author", content: author });
-					}
-				}
-
-				if (publishedTime != null) {
-					meta.push({
-						property: "article:published_time",
-						content: publishedTime,
-					});
-				}
-
-				if (modifiedTime != null) {
-					meta.push({
-						property: "article:modified_time",
-						content: modifiedTime,
-					});
-				}
-
-				if (expirationTime != null) {
-					meta.push({
-						property: "article:expiration_time",
-						content: expirationTime,
-					});
-				}
-
-				if (section != null) {
-					meta.push({ property: "article:section", content: section });
-				}
-
-				for (let tag of tags) {
-					if (tag != null) {
-						meta.push({ property: "article:tag", content: tag });
-					}
-				}
-
-				break;
-			}
-
-			// https://ogp.me/#type_book
-			case "book": {
-				let {
-					authors = [],
-					isbn,
-					releaseDate,
-					tags = [],
-				} = openGraph.book || {};
-				for (let author of authors) {
-					if (author != null) {
-						meta.push({ property: "book:author", content: author });
-					}
-				}
-
-				if (isbn != null) {
-					meta.push({ property: "book:isbn", content: isbn });
-				}
-
-				if (releaseDate != null) {
-					meta.push({
-						property: "book:release_date",
-						content: isDate(releaseDate)
-							? releaseDate.toISOString()
-							: releaseDate.toString(),
-					});
-				}
-
-				for (let tag of tags) {
-					if (tag != null) {
-						meta.push({ property: "book:tag", content: tag });
-					}
-				}
-
-				break;
-			}
-
-			// https://ogp.me/#type_profile
-			case "profile": {
-				let { firstName, lastName, username, gender } = openGraph.profile || {};
-				if (firstName != null) {
-					meta.push({ property: "profile:first_name", content: firstName });
-				}
-
-				if (lastName != null) {
-					meta.push({ property: "profile:last_name", content: lastName });
-				}
-
-				if (username != null) {
-					meta.push({ property: "profile:username", content: username });
-				}
-
-				if (gender != null) {
-					meta.push({ property: "profile:gender", content: gender });
-				}
-				break;
-			}
-
-			// https://ogp.me/#type_website
-			case "website": {
-				break;
-			}
-
-			default:
-				// unknown type, check the config for a custom type key and allow
-				// arbitrary values
-				break;
+	if (openGraph) {
+		// OpenGraph tags
+		if (openGraph.siteName != null) {
+			meta.push({ property: "og:site_name", content: openGraph.siteName });
 		}
-	}
 
-	if (openGraph?.images && openGraph.images.length) {
-		for (let image of openGraph.images) {
-			if (image == null) continue;
-			warning(
-				!isValidUrl(image.url),
-				"The og:image tag must be a valid, absolute URL. Relative paths will not " +
-					"work as expected. Check each `url` value in the config's " +
-					"openGraph.images` array."
-			);
-			warning(
-				image.alt != null,
-				"OpenGraph images should use alt text that describes the image. This is " +
-					"important for users who are visually impaired. Please add a text " +
-					"value to the `alt` key of all `openGraph.images` in your config to " +
-					"dismiss this warning."
-			);
+		if (openGraphTitle != null) {
+			meta.push({ property: "og:title", content: openGraphTitle });
+		}
 
-			meta.push({ property: "og:image", content: image.url });
-			if (image.alt != null) {
-				meta.push({ property: "og:image:alt", content: image.alt });
+		let ogDescription = openGraph.description ?? description;
+		if (ogDescription != null) {
+			meta.push({ property: "og:description", content: ogDescription });
+		}
+
+		if (openGraph.url != null) {
+			warning(
+				isValidUrl(openGraph.url),
+				"The `og:url` tag must be a valid, absolute URL. Relative paths will " +
+					"not work as expected. Check the config's `openGraph.url` value."
+			);
+		}
+		let ogUrl = openGraph.url ?? canonical;
+		if (ogUrl != null) {
+			meta.push({ property: "og:url", content: ogUrl });
+		}
+
+		if (openGraph.type != null) {
+			let ogType = openGraph.type.toLowerCase();
+			meta.push({ property: "og:type", content: ogType });
+
+			// https://ogp.me/#types
+			switch (ogType) {
+				// https://ogp.me/#type_music
+				case "music.song": {
+					let {
+						duration,
+						albums = [],
+						musicians = [],
+					} = (openGraph.music as OpenGraphMusicSong) || {};
+					if (duration != null) {
+						meta.push({ property: "music:duration", content: duration });
+					}
+
+					for (let album of albums) {
+						if (album == null) continue;
+						if (isString(album)) {
+							meta.push({ property: "music:album", content: album });
+							continue;
+						}
+
+						let { url, disc, track } = album || {};
+						if (url != null) {
+							meta.push({ property: "music:album", content: url });
+						}
+						if (disc != null) {
+							meta.push({ property: "music:album:disc", content: disc });
+						}
+						if (track != null) {
+							meta.push({ property: "music:album:track", content: disc });
+						}
+					}
+
+					for (let musician of musicians) {
+						if (musician == null) continue;
+						if (isString(musician)) {
+							meta.push({ property: "music:musician", content: musician });
+						} else if (isObject(musician)) {
+							if (musician.url != null) {
+								meta.push({
+									property: "music:musician",
+									content: musician.url,
+								});
+							}
+						}
+					}
+
+					break;
+				}
+
+				case "music.album": {
+					let {
+						musicians = [],
+						releaseDate,
+						songs = [],
+					} = (openGraph.music as OpenGraphMusicAlbum) || {};
+
+					for (let song of songs) {
+						if (song == null) continue;
+						if (isString(song)) {
+							meta.push({ property: "music:song", content: song });
+						} else if (isObject(song)) {
+							let { url, disc, track } = song || {};
+							if (url != null) {
+								meta.push({ property: "music:song", content: url });
+							}
+							if (disc != null) {
+								meta.push({ property: "music:song:disc", content: disc });
+							}
+							if (track != null) {
+								meta.push({ property: "music:song:track", content: track });
+							}
+						}
+					}
+
+					for (let musician of musicians) {
+						if (musician == null) continue;
+						if (isString(musician)) {
+							meta.push({ property: "music:musician", content: musician });
+						} else if (isObject(musician)) {
+							if (musician.url != null) {
+								meta.push({
+									property: "music:musician",
+									content: musician.url,
+								});
+							}
+						}
+					}
+
+					if (releaseDate != null) {
+						meta.push({
+							property: "music:release_date",
+							content: isDate(releaseDate)
+								? releaseDate.toISOString()
+								: releaseDate,
+						});
+					}
+
+					break;
+				}
+
+				case "music.playlist": {
+					let { creators = [], songs = [] } =
+						(openGraph.music as OpenGraphMusicPlaylist) || {};
+
+					for (let creator of creators) {
+						if (creator == null) continue;
+						if (isString(creator)) {
+							meta.push({ property: "music:creators", content: creator });
+						} else if (isObject(creator)) {
+							let { url } = creator;
+							if (url != null) {
+								meta.push({ property: "music:creators", content: url });
+							}
+						}
+					}
+
+					for (let song of songs) {
+						if (song == null) continue;
+						if (isString(song)) {
+							meta.push({ property: "music:song", content: song });
+						} else if (isObject(song)) {
+							let { url, disc, track } = song || {};
+							if (url != null) {
+								meta.push({ property: "music:song", content: url });
+							}
+							if (disc != null) {
+								meta.push({ property: "music:song:disc", content: disc });
+							}
+							if (track != null) {
+								meta.push({ property: "music:song:track", content: track });
+							}
+						}
+					}
+
+					break;
+				}
+
+				case "music.radio_station": {
+					let { creators = [] } =
+						(openGraph.music as OpenGraphMusicRadioStation) || {};
+
+					for (let creator of creators) {
+						if (creator == null) continue;
+						if (isString(creator)) {
+							meta.push({ property: "music:creators", content: creator });
+						} else if (isObject(creator)) {
+							let { url } = creator;
+							if (url != null) {
+								meta.push({ property: "music:creators", content: url });
+							}
+						}
+					}
+
+					break;
+				}
+
+				// https://ogp.me/#type_video
+				case "video.movie":
+				case "video.episode":
+				case "video.tv_show":
+				case "video.other": {
+					let {
+						actors = [],
+						directors = [],
+						duration,
+						releaseDate,
+						series,
+						tags = [],
+						writers = [],
+					} = openGraph.video || {};
+
+					for (let actor of actors) {
+						if (actor == null) continue;
+						if (isString(actor)) {
+							meta.push({ property: "video:actor", content: actor });
+						} else if (isObject(actor)) {
+							let { url, role } = actor;
+							if (url != null) {
+								meta.push({ property: "video:actor", content: url });
+							}
+							if (role != null) {
+								meta.push({ property: "video:actor:role", content: role });
+							}
+						}
+					}
+
+					for (let director of directors) {
+						if (director == null) continue;
+						if (isString(director)) {
+							meta.push({ property: "video:director", content: director });
+						} else if (isObject(director)) {
+							let { url } = director;
+							if (url != null) {
+								meta.push({ property: "video:director", content: url });
+							}
+						}
+					}
+
+					for (let writer of writers) {
+						if (writer == null) continue;
+						if (isString(writer)) {
+							meta.push({ property: "video:writer", content: writer });
+						} else if (isObject(writer)) {
+							let { url } = writer;
+							if (url != null) {
+								meta.push({ property: "video:writer", content: url });
+							}
+						}
+					}
+
+					if (duration != null) {
+						meta.push({ property: "video:duration", content: duration });
+					}
+
+					if (releaseDate != null) {
+						meta.push({
+							property: "video:release_date",
+							content: isDate(releaseDate)
+								? releaseDate.toISOString()
+								: releaseDate,
+						});
+					}
+
+					for (let tag of tags) {
+						if (tag != null) {
+							meta.push({ property: "video:tag", content: tag });
+						}
+					}
+
+					if (series != null) {
+						meta.push({ property: "video:series", content: series });
+					}
+					break;
+				}
+
+				// https://ogp.me/#no_vertical
+				// https://ogp.me/#type_article
+				case "article": {
+					let {
+						authors = [],
+						publishedTime,
+						modifiedTime,
+						expirationTime,
+						section,
+						tags = [],
+					} = openGraph.article || {};
+
+					for (let author of authors) {
+						if (author != null) {
+							meta.push({ property: "article:author", content: author });
+						}
+					}
+
+					if (publishedTime != null) {
+						meta.push({
+							property: "article:published_time",
+							content: publishedTime,
+						});
+					}
+
+					if (modifiedTime != null) {
+						meta.push({
+							property: "article:modified_time",
+							content: modifiedTime,
+						});
+					}
+
+					if (expirationTime != null) {
+						meta.push({
+							property: "article:expiration_time",
+							content: expirationTime,
+						});
+					}
+
+					if (section != null) {
+						meta.push({ property: "article:section", content: section });
+					}
+
+					for (let tag of tags) {
+						if (tag != null) {
+							meta.push({ property: "article:tag", content: tag });
+						}
+					}
+
+					break;
+				}
+
+				// https://ogp.me/#type_book
+				case "book": {
+					let {
+						authors = [],
+						isbn,
+						releaseDate,
+						tags = [],
+					} = openGraph.book || {};
+					for (let author of authors) {
+						if (author != null) {
+							meta.push({ property: "book:author", content: author });
+						}
+					}
+
+					if (isbn != null) {
+						meta.push({ property: "book:isbn", content: isbn });
+					}
+
+					if (releaseDate != null) {
+						meta.push({
+							property: "book:release_date",
+							content: isDate(releaseDate)
+								? releaseDate.toISOString()
+								: releaseDate.toString(),
+						});
+					}
+
+					for (let tag of tags) {
+						if (tag != null) {
+							meta.push({ property: "book:tag", content: tag });
+						}
+					}
+
+					break;
+				}
+
+				// https://ogp.me/#type_profile
+				case "profile": {
+					let { firstName, lastName, username, gender } =
+						openGraph.profile || {};
+					if (firstName != null) {
+						meta.push({ property: "profile:first_name", content: firstName });
+					}
+
+					if (lastName != null) {
+						meta.push({ property: "profile:last_name", content: lastName });
+					}
+
+					if (username != null) {
+						meta.push({ property: "profile:username", content: username });
+					}
+
+					if (gender != null) {
+						meta.push({ property: "profile:gender", content: gender });
+					}
+					break;
+				}
+
+				// https://ogp.me/#type_website
+				case "website": {
+					break;
+				}
+
+				default:
+					// unknown type, check the config for a custom type key and allow
+					// arbitrary values
+					break;
 			}
+		}
 
-			if (image.secureUrl != null) {
+		if (openGraph.images?.length) {
+			for (let image of openGraph.images) {
+				if (image == null) continue;
 				warning(
-					!isValidUrl(image.secureUrl),
-					"The og:image:secure_url tag must be a valid, absolute URL. Relative paths will " +
-						"not work as expected. Check each `secureUrl` value in the config's " +
+					!isValidUrl(image.url),
+					"The og:image tag must be a valid, absolute URL. Relative paths will not " +
+						"work as expected. Check each `url` value in the config's " +
 						"openGraph.images` array."
 				);
-				meta.push({
-					property: "og:image:secure_url",
-					content: image.secureUrl,
-				});
-			}
+				warning(
+					image.alt != null,
+					"OpenGraph images should use alt text that describes the image. This is " +
+						"important for users who are visually impaired. Please add a text " +
+						"value to the `alt` key of all `openGraph.images` in your config to " +
+						"dismiss this warning."
+				);
 
-			if (image.type != null) {
-				meta.push({ property: "og:image:type", content: image.type });
-			}
+				meta.push({ property: "og:image", content: image.url });
+				if (image.alt != null) {
+					meta.push({ property: "og:image:alt", content: image.alt });
+				}
 
-			if (image.width != null) {
-				meta.push({ property: "og:image:width", content: String(image.width) });
-			}
+				if (image.secureUrl != null) {
+					warning(
+						!isValidUrl(image.secureUrl),
+						"The og:image:secure_url tag must be a valid, absolute URL. Relative paths will " +
+							"not work as expected. Check each `secureUrl` value in the config's " +
+							"openGraph.images` array."
+					);
+					meta.push({
+						property: "og:image:secure_url",
+						content: image.secureUrl,
+					});
+				}
 
-			if (image.height != null) {
-				meta.push({
-					property: "og:image:height",
-					content: String(image.height),
-				});
+				if (image.type != null) {
+					meta.push({ property: "og:image:type", content: image.type });
+				}
+
+				if (image.width != null) {
+					meta.push({
+						property: "og:image:width",
+						content: String(image.width),
+					});
+				}
+
+				if (image.height != null) {
+					meta.push({
+						property: "og:image:height",
+						content: String(image.height),
+					});
+				}
 			}
 		}
-	}
 
-	if (openGraph?.videos && openGraph.videos.length) {
-		for (let video of openGraph.videos) {
-			warning(
-				!isValidUrl(video.url),
-				"The `og:video` tag tag must be a valid, absolute URL. Relative paths will " +
-					"not work as expected. Check each `url` value in the config's " +
-					"`openGraph.videos` array."
-			);
-			meta.push({ property: "og:video", content: video.url });
-			if (video.alt != null) {
-				meta.push({ property: "og:video:alt", content: video.alt });
-			}
-
-			if (video.secureUrl != null) {
+		if (openGraph.videos && openGraph.videos.length) {
+			for (let video of openGraph.videos) {
 				warning(
 					!isValidUrl(video.url),
-					"The `og:video:secure_url` tag tag must be a valid, absolute URL. Relative paths will " +
-						"not work as expected. Check each `secureUrl` value in the config's " +
+					"The `og:video` tag tag must be a valid, absolute URL. Relative paths will " +
+						"not work as expected. Check each `url` value in the config's " +
 						"`openGraph.videos` array."
 				);
-				meta.push({
-					property: "og:video:secure_url",
-					content: video.secureUrl,
-				});
-			}
+				meta.push({ property: "og:video", content: video.url });
+				if (video.alt != null) {
+					meta.push({ property: "og:video:alt", content: video.alt });
+				}
 
-			if (video.type != null) {
-				meta.push({ property: "og:video:type", content: video.type });
-			}
+				if (video.secureUrl != null) {
+					warning(
+						!isValidUrl(video.url),
+						"The `og:video:secure_url` tag tag must be a valid, absolute URL. Relative paths will " +
+							"not work as expected. Check each `secureUrl` value in the config's " +
+							"`openGraph.videos` array."
+					);
+					meta.push({
+						property: "og:video:secure_url",
+						content: video.secureUrl,
+					});
+				}
 
-			if (video.width != null) {
-				meta.push({ property: "og:video:width", content: String(video.width) });
-			}
+				if (video.type != null) {
+					meta.push({ property: "og:video:type", content: video.type });
+				}
 
-			if (video.height != null) {
-				meta.push({
-					property: "og:video:height",
-					content: String(video.height),
-				});
+				if (video.width != null) {
+					meta.push({
+						property: "og:video:width",
+						content: String(video.width),
+					});
+				}
+
+				if (video.height != null) {
+					meta.push({
+						property: "og:video:height",
+						content: String(video.height),
+					});
+				}
 			}
 		}
-	}
 
-	if (openGraph?.locale != null) {
-		meta.push({ property: "og:locale", content: openGraph.locale });
+		if (openGraph.locale != null) {
+			meta.push({ property: "og:locale", content: openGraph.locale });
+		}
 	}
 
 	// https://developer.twitter.com/en/docs/twitter-for-websites/cards/guides/getting-started#started
 	if (twitter) {
-		let twitterTitle = twitter.title ?? title;
+		let twitterCardIsSet = false;
 		if (twitterTitle != null) {
 			meta.push({ name: "twitter:title", content: twitterTitle });
 		}
@@ -622,6 +635,7 @@ function getMeta(config: SeoResolvedConfig, arg?: RouteArgs) {
 		if (hasTwitterImageMeta(twitter)) {
 			let twitterCard = twitter.card ?? "summary";
 			meta.push({ name: "twitter:card", content: twitterCard });
+			twitterCardIsSet = true;
 			warning(
 				twitterCard === "summary" || twitterCard === "summary_large_image",
 				"The `twitter` config contains image data, but the `twitter.card` " +
@@ -654,6 +668,7 @@ function getMeta(config: SeoResolvedConfig, arg?: RouteArgs) {
 		if (hasTwitterPlayerMeta(twitter)) {
 			let twitterCard = twitter.card ?? "player";
 			meta.push({ name: "twitter:card", content: twitterCard });
+			twitterCardIsSet = true;
 			warning(
 				twitterCard === "player",
 				"The `twitter` config contains player data, but the `twitter.card` " +
@@ -704,6 +719,7 @@ function getMeta(config: SeoResolvedConfig, arg?: RouteArgs) {
 		if (hasTwitterAppMeta(twitter)) {
 			let twitterCard = twitter.card ?? "app";
 			meta.push({ name: "twitter:card", content: twitterCard });
+			twitterCardIsSet = true;
 			warning(
 				twitterCard === "app",
 				"The `twitter` config contains app data, but the `twitter.card` " +
@@ -749,6 +765,18 @@ function getMeta(config: SeoResolvedConfig, arg?: RouteArgs) {
 					}
 				}
 			}
+		}
+
+		if (!twitterCardIsSet && hasOpenGraphImageMeta(config.openGraph)) {
+			let firstImage = config.openGraph.images?.find(
+				(image) => image.url != null
+			)!;
+			meta.push({ name: "twitter:card", content: "summary_large_image" });
+			meta.push({ name: "twitter:image", content: firstImage.url });
+			if (firstImage.alt) {
+				meta.push({ name: "twitter:image:alt", content: firstImage.alt });
+			}
+			twitterCardIsSet = true;
 		}
 	}
 
@@ -812,19 +840,64 @@ function getMeta(config: SeoResolvedConfig, arg?: RouteArgs) {
 	}
 }
 
-function getSeoTitle(config: SeoConfig): string | null {
-	let bypassTemplate = !!config.bypassTemplate;
-	let templateTitle = config.titleTemplate;
-	let resolvedTitle: string | undefined;
-	if (config.title != null) {
-		resolvedTitle = config.title;
-		if (templateTitle != null && !bypassTemplate) {
-			resolvedTitle = templateTitle.replace(/%s/g, () => resolvedTitle ?? "");
-		}
-	} else if (config.defaultTitle != null) {
-		resolvedTitle = config.defaultTitle;
+function resolveConfig(
+	defaultConfig: SeoInitConfig | undefined,
+	localConfig: SeoConfig | ((routeArgs?: MetaArgs) => SeoConfig) | undefined,
+	routeArgs: MetaArgs | undefined
+) {
+	let config: SeoResolvedConfig = isFunction(localConfig)
+		? localConfig(routeArgs)
+		: { ...localConfig };
+	config = defaultConfig ? merge({}, defaultConfig, config) : config;
+	return config;
+}
+
+function getPageTitles(config: SeoConfig): {
+	title: string | null;
+	openGraph: string | null;
+	twitter: string | null;
+} {
+	let titles: ReturnType<typeof getPageTitles> = {
+		title: null,
+		openGraph: null,
+		twitter: null,
+	};
+
+	if (
+		config.defaultTitle == null &&
+		config.title == null &&
+		config.openGraph?.title == null &&
+		config.twitter?.title == null
+	) {
+		return titles;
 	}
-	return resolvedTitle ?? null;
+
+	let templateTitle = config.titleTemplate;
+	for (let key of ["title", "openGraph", "twitter"] as const) {
+		// prettier-ignore
+		let tagTitle =
+			key === "openGraph"
+				? config.openGraph?.title ?? config.title ?? config.defaultTitle
+				: key === "twitter"
+				? config.twitter?.title ?? config.openGraph?.title ?? config.title ?? config.defaultTitle
+				: config.title ?? config.defaultTitle;
+		if (tagTitle == null || templateTitle == null) {
+			titles[key] = tagTitle ?? null;
+			continue;
+		}
+
+		let shouldBypassTemplate =
+			(isObject(config.bypassTitleTemplate) &&
+				!!config.bypassTitleTemplate[key]) ||
+			!!config.bypassTitleTemplate;
+
+		let resolvedTitle = tagTitle;
+		if (!shouldBypassTemplate) {
+			resolvedTitle = templateTitle.replace(/%s/g, () => resolvedTitle);
+		}
+		titles[key] = resolvedTitle;
+	}
+	return titles;
 }
 
 function isValidTwitterCardType(card: unknown): card is TwitterCardType {
@@ -832,6 +905,15 @@ function isValidTwitterCardType(card: unknown): card is TwitterCardType {
 		isString(card) &&
 		["summary", "summary_large_image", "app", "player"].includes(card)
 	);
+}
+
+function hasOpenGraphImageMeta(
+	og: OpenGraphMeta | undefined | null
+): og is OpenGraphMeta & {
+	images: Required<OpenGraphMeta["images"]>;
+} {
+	if (!og?.images) return false;
+	return og.images.some((image) => image.url != null);
 }
 
 function hasTwitterAppMeta(twitter: TwitterMeta): twitter is TwitterMeta & {
@@ -850,18 +932,6 @@ function hasTwitterImageMeta(twitter: TwitterMeta): twitter is TwitterMeta & {
 	image: { url: Required<TwitterImageMeta["url"]> } & TwitterImageMeta;
 } {
 	return twitter.image?.url != null;
-}
-
-function resolveConfig(
-	defaultConfig: SeoInitConfig | undefined,
-	localConfig: SeoConfig | ((routeArgs?: RouteArgs) => SeoConfig) | undefined,
-	routeArgs: RouteArgs | undefined
-) {
-	let config: SeoResolvedConfig = isFunction(localConfig)
-		? localConfig(routeArgs)
-		: { ...localConfig };
-	config = defaultConfig ? merge({}, defaultConfig, config) : config;
-	return config;
 }
 
 function resolveRobotsContent(robots: RobotsOptions) {
@@ -896,6 +966,47 @@ function resolveRobotsContent(robots: RobotsOptions) {
 	}
 	return robotsParam;
 }
+
+// #region Internal utils
+
+function warn(message: string): void {
+	if (typeof console !== "undefined") console.warn("remix-seo: " + message);
+	try {
+		// This error is thrown as a convenience so you can more easily
+		// find the source for a warning that appears in the console by
+		// enabling "pause on exceptions" in your JavaScript debugger.
+		throw new Error("remix-seo: " + message);
+	} catch (e) {}
+}
+
+function isValidUrl(str: string) {
+	try {
+		new URL(str);
+		return true;
+	} catch (_) {
+		return false;
+	}
+}
+
+function isString(value: unknown): value is string {
+	return typeof value === "string";
+}
+
+function isObject(value: unknown): value is object {
+	return value != null && typeof value === "object";
+}
+
+function isFunction(value: unknown): value is Function {
+	return typeof value === "function";
+}
+
+function isDate(value: unknown): value is Date {
+	return isObject(value) && value instanceof Date;
+}
+
+// #endregion
+
+// #region Types
 
 interface FacebookMeta {
 	appId?: string;
@@ -1221,12 +1332,18 @@ interface TwitterAppMeta {
 
 interface SeoResolvedConfig extends SeoConfig, SeoInitConfig {}
 
-export interface SeoInitConfig extends SeoConfig {
+interface SeoInitConfig extends SeoConfig {
 	silenceWarnings?: boolean;
 }
 
-export interface SeoConfig {
-	bypassTemplate?: boolean;
+interface SeoConfig {
+	bypassTitleTemplate?:
+		| boolean
+		| {
+				title?: boolean;
+				twitter?: boolean;
+				openGraph?: boolean;
+		  };
 	canonical?: string;
 	defaultTitle?: string;
 	description?: string;
@@ -1234,7 +1351,7 @@ export interface SeoConfig {
 	languageAlternates?: LanguageAlternate[];
 	mobileAlternate?: MobileAlternate;
 	omitGoogleBotMeta?: boolean;
-	openGraph?: OpenGraphMeta;
+	openGraph?: OpenGraphMeta | null;
 	robots?: RobotsOptions;
 	title?: string;
 	titleTemplate?: string;
@@ -1249,23 +1366,17 @@ interface GoogleMeta {
 	robots?: RobotsOptions | null;
 }
 
-// TODO: Use Remix/RR types
-interface RouteArgs {
-	data: any;
-	parentsData: RouteData;
-	params: Params; // Params<string>;
-	location: Location;
-}
-type RouteData = any;
-type Params<T = any> = any & T;
-type Location = any;
-
 interface SeoBaseFunction<Return> {
 	(config?: SeoConfig): Return;
 	(
-		config: SeoConfig | ((routeArgs?: RouteArgs) => SeoConfig),
-		routeArgs: RouteArgs
+		config: SeoConfig | ((routeArgs?: MetaArgs) => SeoConfig),
+		routeArgs: MetaArgs
 	): Return;
 }
 
-export interface SeoFunction extends SeoBaseFunction<MetaDescriptor[]> {}
+interface SeoFunction extends SeoBaseFunction<MetaDescriptor[]> {}
+
+// #endregion
+
+export { initSeo };
+export type { SeoInitConfig, SeoConfig, SeoFunction };
