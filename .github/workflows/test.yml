@@ -39,5 +39,8 @@ jobs:
               args: [--frozen-lockfile, --strict-peer-dependencies]
             - args: [--global, prettier, typescript]
 
+      - name: 🛠️ Build
+        run: pnpm build
+
       - name: ⚡ Run vitest
-        run: pnpm test:coverage
+        run: TEST_BUILD=true pnpm test:coverage
