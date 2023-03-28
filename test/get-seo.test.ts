@@ -41,7 +41,7 @@ describe("init without default options", () => {
 		]);
 	});
 
-	it.only("returns corrent tags with a bunch of stuff", () => {
+	it("returns corrent tags with a bunch of stuff", () => {
 		let meta = getSeo({
 			title: "Best website ever",
 			description: "This is a really great website ya dork",
