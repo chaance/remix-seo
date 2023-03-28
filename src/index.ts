@@ -1,4 +1,5 @@
 import type { HtmlMetaDescriptor, HtmlLinkDescriptor } from "@remix-run/react";
+import merge from "just-merge";
 
 /**
  * A function for setting default SEO meta for Remix sites.
@@ -677,7 +678,7 @@ function resolveConfig(
 			? localConfig(routeArgs)
 			: localConfig || {};
 
-	config = defaultConfig ? { ...defaultConfig, ...config } : config;
+	config = defaultConfig ? merge({}, defaultConfig, config) : config;
 
 	return config;
 }
