@@ -2,9 +2,13 @@ import { initSeo as _initSeo } from "../src/index";
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 
 let initSeo = _initSeo;
-try {
-	initSeo = require("../dist/index").initSeo;
-} catch (_) {}
+if (import.meta.env.TEST_BUILD) {
+	try {
+		initSeo = require("../dist/index").initSeo;
+	} catch (_) {
+		initSeo = _initSeo;
+	}
+}
 
 describe("init without default options", () => {
 	let { getSeo, getSeoLinks, getSeoMeta } = initSeo();
