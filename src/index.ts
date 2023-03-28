@@ -10,8 +10,8 @@ import type {
  * @param initConfig - The initial configuration object. Each of the returned
  * functions will merge their own config with the initial config when called on
  * a specific route.
- * @returns An object with three methods to use for getting SEO link and meta
- * tags on the site's routes.
+ * @returns An object with methods to use for getting SEO metadata tags tags for
+ * the site's routes.
  */
 function initSeo(initConfig?: SeoInitConfig): {
 	getSeo: SeoFunction;
