@@ -41,6 +41,7 @@ describe("init without default options", () => {
 		]);
 	});
 
+	// TODO: Figure out why we're logging a warning here
 	it("returns corrent tags with a bunch of stuff", () => {
 		let meta = getSeo({
 			title: "Best website ever",
